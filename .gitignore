@@ -1,0 +1,31 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+
+# Flask session files
+flask_session/
+
+# Local development settings
+.env
+.flaskenv
+
+# Virtual environment
+venv/
+ENV/
+
+# IDE specific files
+.idea/
+.vscode/
+
+# OS specific files
+.DS_Store
+.DS_Store?
+
+
+# SSL certificates
+*.pem
+*.key
+*.crt
