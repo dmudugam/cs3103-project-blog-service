@@ -30,3 +30,4 @@ ENV/
 *.key
 *.crt
 config/settings.py
+/config
