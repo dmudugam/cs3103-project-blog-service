@@ -1,0 +1,1359 @@
+openapi: 3.0.0
+info:
+  title: UNB Blog Network API
+  description: API documentation for the UNB Blog Network application
+  version: 1.0.0
+  contact:
+    name: Team Brute-Force
+servers:
+  - url: https://cs3103.cs.unb.ca:8006
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and verification endpoints
+  - name: Blogs
+    description: Blog management endpoints
+  - name: Comments
+    description: Blog comment functionality
+  - name: Users
+    description: User profile and preference management
+  - name: AI
+    description: AI-powered content generation and enhancement
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: peanutButter
+  
+  schemas:
+    Error:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+        message:
+          type: string
+          description: Error message
+      required:
+        - status
+        - message
+    
+    Success:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+          description: Success message
+      required:
+        - status
+        - message
+    
+    User:
+      type: object
+      properties:
+        userId:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: string
+        joinDate:
+          type: string
+          format: date-time
+        user_type:
+          type: string
+          enum: [local, ldap]
+        verified:
+          type: boolean
+        mobile_verified:
+          type: boolean
+      required:
+        - userId
+        - username
+        - user_type
+    
+    Blog:
+      type: object
+      properties:
+        blogId:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        date:
+          type: string
+          format: date-time
+        userId:
+          type: integer
+        author:
+          type: string
+      required:
+        - blogId
+        - title
+        - content
+        - date
+        - userId
+        - author
+    
+    Comment:
+      type: object
+      properties:
+        commentId:
+          type: integer
+        content:
+          type: string
+        date:
+          type: string
+          format: date-time
+        blogId:
+          type: integer
+        userId:
+          type: integer
+        parentCommentId:
+          type: integer
+          nullable: true
+        author:
+          type: string
+      required:
+        - commentId
+        - content
+        - date
+        - blogId
+        - userId
+        - author
+    
+    NotificationPreferences:
+      type: object
+      properties:
+        userId:
+          type: integer
+        notifyOnBlog:
+          type: boolean
+        notifyOnComment:
+          type: boolean
+      required:
+        - userId
+        - notifyOnBlog
+        - notifyOnComment
+    
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/Success'
+        - type: object
+          properties:
+            userId:
+              type: integer
+            username:
+              type: string
+            email:
+              type: string
+              format: email
+            phoneNumber:
+              type: string
+            verified:
+              type: boolean
+            mobileVerified:
+              type: boolean
+            hasEmail:
+              type: boolean
+            hasPhone:
+              type: boolean
+            smsEnabled:
+              type: boolean
+            userType:
+              type: string
+              enum: [local, ldap]
+    
+    RegisterResponse:
+      allOf:
+        - $ref: '#/components/schemas/Success'
+        - type: object
+          properties:
+            userId:
+              type: integer
+            username:
+              type: string
+            email:
+              type: string
+              format: email
+
+security:
+  - cookieAuth: []
+
+paths:
+  # Authentication endpoints
+  /auth/register:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Register a new user
+      description: Creates a new local user account with the provided credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: johndoe
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  format: password
+                  example: PassW0rd!23
+              required:
+                - username
+                - email
+                - password
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/login:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Login to the application
+      description: Authenticates a user with either LDAP or local credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: johndoe
+                password:
+                  type: string
+                  format: password
+                type:
+                  type: string
+                  enum: [ldap, local]
+                  default: ldap
+                  example: local
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    get:
+      tags: [Authentication]
+      security: []
+      summary: Check authentication status
+      description: Verifies if the current session is authenticated
+      responses:
+        '200':
+          description: User is authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout from the application
+      description: Ends the current user session
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+  
+  /auth/request-otp:
+    post:
+      tags: [Authentication]
+      summary: Request email verification OTP
+      description: Sends a one-time password to the user's email for verification
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                  description: Optional, will use session user if not provided
+                  example: 123
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/verify-otp:
+    post:
+      tags: [Authentication]
+      summary: Verify email OTP
+      description: Validates the one-time password sent to the user's email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                  example: 123
+                otp:
+                  type: string
+                  example: "123456"
+              required:
+                - userId
+                - otp
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Invalid OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/request-mobile-otp:
+    post:
+      tags: [Authentication]
+      summary: Request mobile verification OTP
+      description: Sends a one-time password via SMS to the user's phone
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/verify-mobile-otp:
+    post:
+      tags: [Authentication]
+      summary: Verify mobile OTP
+      description: Validates the one-time password sent to the user's phone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                  example: 123
+                otp:
+                  type: string
+                  example: "123456"
+              required:
+                - userId
+                - otp
+      responses:
+        '200':
+          description: Mobile verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Invalid OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/forgot-password:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Request password reset
+      description: Initiates password reset process by sending OTP to user's email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+              required:
+                - email
+      responses:
+        '200':
+          description: Reset OTP sent if account exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+  
+  /auth/verify-reset-otp:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Verify reset OTP
+      description: Validates the OTP sent for password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                otp:
+                  type: string
+                  example: "123456"
+              required:
+                - otp
+      responses:
+        '200':
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      username:
+                        type: string
+                      userId:
+                        type: integer
+        '400':
+          description: Invalid OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/reset-password:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Complete password reset
+      description: Sets a new password after OTP has been verified
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                otp:
+                  type: string
+                  example: "123456"
+                password:
+                  type: string
+                  format: password
+                  example: "NewPass123!"
+              required:
+                - otp
+                - password
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  # Blog endpoints
+  /blogs:
+    get:
+      tags: [Blogs]
+      security: []
+      summary: Get all blogs
+      description: Retrieves a list of blog posts with pagination and filtering options
+      parameters:
+        - name: newerThan
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter blogs created after this date (YYYY-MM-DD)
+          example: "2023-01-01"
+        - name: author
+          in: query
+          schema:
+            type: string
+          description: Filter blogs by author name
+          example: "johndoe"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Maximum number of blogs to return
+          example: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Number of blogs to skip for pagination
+          example: 20
+      responses:
+        '200':
+          description: A list of blogs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Blog'
+  
+  /blogs/{blogId}:
+    get:
+      tags: [Blogs]
+      security: []
+      summary: Get blog by ID
+      description: Retrieves details of a specific blog post
+      parameters:
+        - name: blogId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 42
+      responses:
+        '200':
+          description: Blog details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Blog'
+        '404':
+          description: Blog not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /blogs/create:
+    post:
+      tags: [Blogs]
+      summary: Create a new blog
+      description: Creates a new blog post (requires authentication and verification)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "My Awesome Blog Post"
+                content:
+                  type: string
+                  example: "This is the content of my blog post..."
+              required:
+                - title
+                - content
+      responses:
+        '201':
+          description: Blog created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Blog'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /blogs/{blogId}/update:
+    put:
+      tags: [Blogs]
+      summary: Update a blog
+      description: Updates an existing blog post (requires ownership)
+      parameters:
+        - name: blogId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 42
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Updated Blog Title"
+                content:
+                  type: string
+                  example: "Updated blog content..."
+              required:
+                - title
+                - content
+      responses:
+        '200':
+          description: Blog updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Blog'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not verified or not owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Blog not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /blogs/{blogId}/delete:
+    delete:
+      tags: [Blogs]
+      summary: Delete a blog
+      description: Removes a blog post (requires ownership)
+      parameters:
+        - name: blogId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 42
+      responses:
+        '204':
+          description: Blog deleted successfully
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not verified or not owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Blog not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  # Comment endpoints
+  /blogs/{blogId}/comments:
+    get:
+      tags: [Comments]
+      security: []
+      summary: Get comments for a blog
+      description: Retrieves all comments for a specific blog post
+      parameters:
+        - name: blogId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 42
+        - name: newerThan
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter comments created after this date (YYYY-MM-DD)
+          example: "2023-01-01"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Maximum number of comments to return
+          example: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Number of comments to skip for pagination
+          example: 20
+      responses:
+        '200':
+          description: A list of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '404':
+          description: Blog not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /blogs/{blogId}/comments/create:
+    post:
+      tags: [Comments]
+      summary: Create a comment on a blog
+      description: Adds a new comment to a blog post
+      parameters:
+        - name: blogId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 42
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  example: "This is my comment on the blog post."
+              required:
+                - content
+      responses:
+        '201':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Blog not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /comments/{commentId}:
+    get:
+      tags: [Comments]
+      security: []
+      summary: Get comment by ID
+      description: Retrieves a specific comment
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      responses:
+        '200':
+          description: Comment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '404':
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /comments/{commentId}/update:
+    put:
+      tags: [Comments]
+      summary: Update a comment
+      description: Modifies an existing comment (requires ownership)
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  example: "Updated comment text."
+              required:
+                - content
+      responses:
+        '200':
+          description: Comment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not verified or not owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /comments/{commentId}/delete:
+    delete:
+      tags: [Comments]
+      summary: Delete a comment
+      description: Removes a comment from a blog post (requires ownership)
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      responses:
+        '204':
+          description: Comment deleted successfully
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not verified or not owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /comments/{commentId}/replies:
+    get:
+      tags: [Comments]
+      security: []
+      summary: Get replies to a comment
+      description: Retrieves all replies to a specific comment
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      responses:
+        '200':
+          description: A list of reply comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '404':
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /comments/{commentId}/replies/create:
+    post:
+      tags: [Comments]
+      summary: Create a reply to a comment
+      description: Adds a new reply to an existing comment
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  example: "This is my reply to the comment."
+              required:
+                - content
+      responses:
+        '201':
+          description: Reply created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  # User endpoints
+  /users:
+    get:
+      tags: [Users]
+      summary: Get all users
+      description: Retrieves a list of registered users
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Maximum number of users to return
+          example: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Number of users to skip for pagination
+          example: 20
+      responses:
+        '200':
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+  
+  /users-api/{userId}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      description: Retrieves a specific user's profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /users/{userId}/blogs:
+    get:
+      tags: [Users]
+      security: []
+      summary: Get blogs by user ID
+      description: Retrieves all blog posts created by a specific user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+        - name: newerThan
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter blogs created after this date (YYYY-MM-DD)
+          example: "2023-01-01"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Maximum number of blogs to return
+          example: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Number of blogs to skip for pagination
+          example: 20
+      responses:
+        '200':
+          description: A list of blogs by the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Blog'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /users/email:
+    put:
+      tags: [Users]
+      summary: Update user email
+      description: Changes the email address for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "newemail@example.com"
+              required:
+                - email
+      responses:
+        '200':
+          description: Email updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /users/phone:
+    put:
+      tags: [Users]
+      summary: Update user phone number
+      description: Changes the phone number for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  description: Phone number in E.164 format (e.g., +1234567890)
+                  example: "+1234567890"
+              required:
+                - phone
+      responses:
+        '200':
+          description: Phone number updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/User'
+                  - type: object
+                    properties:
+                      sms_sent:
+                        type: boolean
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /users/notification-preferences:
+    get:
+      tags: [Users]
+      summary: Get user notification preferences
+      description: Retrieves the notification settings for the authenticated user
+      responses:
+        '200':
+          description: User notification preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    put:
+      tags: [Users]
+      summary: Update user notification preferences
+      description: Changes notification settings for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notifyOnBlog:
+                  type: boolean
+                  example: true
+                notifyOnComment:
+                  type: boolean
+                  example: false
+              required:
+                - notifyOnBlog
+                - notifyOnComment
+      responses:
+        '200':
+          description: Notification preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  # AI endpoints
+  /ai/generate:
+    post:
+      tags: [AI]
+      summary: Generate or enhance content using AI
+      description: Uses Gemini AI to create new content or improve existing text
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt:
+                  type: string
+                  example: "Write a blog post about sustainable energy"
+                mode:
+                  type: string
+                  enum: [generate, enhance]
+                  default: generate
+                  example: "generate"
+                content:
+                  type: string
+                  description: Required if mode is "enhance"
+                  example: "This is my draft blog post about sustainable energy..."
+              required:
+                - prompt
+      responses:
+        '200':
+          description: Content generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [success]
+                  generatedContent:
+                    type: string
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

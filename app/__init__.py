@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, render_template
 from flask import send_from_directory
 from flask_restful import Api
 from flask_session import Session
@@ -72,5 +72,13 @@ def create_app():
     @app.route('/')
     def serve_index():
         return send_from_directory('../templates', 'index.html')
+    
+    @app.route('/api/docs')
+    def api_docs():
+        return render_template('swagger.html')
+
+    @app.route('/api/docs/openapi.yaml')
+    def api_spec():
+        return send_from_directory('../docs', 'openapi-spec.yaml', mimetype='text/yaml')
     
     return app
