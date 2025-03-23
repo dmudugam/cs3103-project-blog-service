@@ -1,4 +1,5 @@
-from flask import Flask
+from flask import Flask, request
+from flask import send_from_directory
 from flask_restful import Api
 from flask_session import Session
 from flask_cors import CORS
@@ -67,5 +68,9 @@ def create_app():
     # Add direct route handlers
     from app.routes.direct_routes import register_direct_routes
     register_direct_routes(app)
+
+    @app.route('/')
+    def serve_index():
+        return send_from_directory('../templates', 'index.html')
     
     return app
