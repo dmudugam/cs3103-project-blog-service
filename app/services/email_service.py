@@ -18,19 +18,30 @@ def send_email(to_email, subject, body):
     
     msg.attach(MIMEText(body, 'plain'))
     
-    # Send the email in a separate thread to not block the request
+    # Getting the current application context for the thread
+    app_context = current_app._get_current_object()
+    
+    # Getting config values before passing to thread
+    smtp_server = current_app.config['SMTP_SERVER']
+    smtp_port = current_app.config['SMTP_PORT']
+    smtp_username = current_app.config['SMTP_USERNAME']
+    smtp_password = current_app.config['SMTP_PASSWORD']
+    
+    # Sending the email in a separate thread
     def send_email_thread():
-        try:
-            server = smtplib.SMTP(current_app.config['SMTP_SERVER'], current_app.config['SMTP_PORT'])
-            server.starttls()
-            server.login(current_app.config['SMTP_USERNAME'], current_app.config['SMTP_PASSWORD'])
-            server.send_message(msg)
-            server.quit()
-            print(f"Email sent to {to_email}")
-            return True
-        except Exception as e:
-            print(f"Failed to send email: {e}", file=sys.stderr)
-            return False
+        # Use the application context in the thread
+        with app_context.app_context():
+            try:
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()
+                server.login(smtp_username, smtp_password)
+                server.send_message(msg)
+                server.quit()
+                print(f"Email sent to {to_email}")
+                return True
+            except Exception as e:
+                print(f"Failed to send email: {e}", file=sys.stderr)
+                return False
     
     thread = threading.Thread(target=send_email_thread)
     thread.start()

@@ -9,665 +9,676 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="../static/css/styles.css"/>
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-    <div class="container-fluid" id="app">
-        <!-- Header Section with UNB Logo -->
-        <div class="jumbotron jumbotron-fluid text-center">
-            <!-- Logo Container -->
-            <div class="logo-container">
-                <img src="../static/images/unb-logo.png" alt="UNB Logo" class="site-logo">
+    <div class="container-fluid" id="app" v-cloak>
+        <div v-if="appReady">
+            <!-- Header Section with UNB Logo -->
+            <div class="jumbotron jumbotron-fluid text-center">
+                <!-- Logo Container -->
+                <div class="logo-container">
+                    <img src="../static/images/unb-logo.png" alt="UNB Logo" class="site-logo">
+                </div>
+                
+                <h1>UNB Blog Network: Connect & Create<sup><small>©️</small></sup></h1>
+                
+                <!-- Notification Banner -->
+                <div v-if="notification.show" class="alert" :class="{
+                    'alert-success': notification.type === 'success',
+                    'alert-danger': notification.type === 'error',
+                    'alert-warning': notification.type === 'warning',
+                    'alert-info': notification.type === 'info'
+                }">
+                    {{ notification.message }}
+                </div>
+                
+                <!-- Display user info and blog controls when logged in -->
+                <div v-if="!authenticated" class="auth-controls">
+                    <button type="button" class="btn btn-outline-primary mr-2" @click="openLoginModal('ldap')">UNB Login</button>
+                    <button type="button" class="btn btn-outline-info mr-2" @click="openLoginModal('local')">Blog Login</button>
+                    <button type="button" class="btn btn-outline-success" @click="openRegisterModal()">Register</button>
+                </div>
+                
+                <div v-else class="auth-controls">
+                    <span class="user-welcome mr-2">
+                        Welcome, {{ username }}!
+                        <span v-if="userType" class="badge badge-type" :class="userType">{{ userType === 'ldap' ? 'UNB' : userType }}</span>
+                        <span v-if="!verified && !mobileVerified" class="badge badge-danger">Unverified</span>
+                        <span v-else-if="verified && mobileVerified" class="badge badge-success">Fully Verified</span>
+                        <span v-else-if="verified" class="badge badge-info">Email Verified</span>
+                        <span v-else-if="mobileVerified" class="badge badge-info">Mobile Verified</span>
+                    </span>
+                    
+                    <!-- Email verification -->
+                    <button v-if="!hasEmail" type="button" class="btn btn-sm btn-outline-primary mr-2" @click="openEmailModal">Add Email</button>
+                    <button v-else-if="!verified" type="button" class="btn btn-sm btn-outline-warning mr-2" @click="requestEmailVerification">Verify Email</button>
+                    <button v-else type="button" class="btn btn-sm btn-outline-secondary mr-2" @click="openEmailModal">Update Email</button>
+                    
+                    <!-- Phone verification if SMS is enable -->
+                    <template v-if="smsEnabled">
+                        <button v-if="!hasPhone" type="button" class="btn btn-sm btn-outline-primary mr-2" @click="openPhoneModal">Add Phone</button>
+                        <button v-else-if="!mobileVerified" type="button" class="btn btn-sm btn-outline-warning mr-2" @click="requestMobileVerification">Verify Phone</button>
+                        <button v-else type="button" class="btn btn-sm btn-outline-secondary mr-2" @click="openPhoneModal">Update Phone</button>
+                    </template>
+                    
+                    <!-- Main Actions -->
+                    <button type="button" class="btn btn-sm btn-outline-info mr-2" @click="openNotificationPrefsModal">Notification Settings</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary mr-2" @click="getUserBlogs">My Blogs</button>
+                    <button type="button" class="btn btn-sm btn-outline-success mr-2" @click="openCreateBlogModal">Create Blog</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" @click="logout">Logout</button>
+                </div>
             </div>
             
-            <h1>UNB Blog Network: Connect & Create<sup><small>©️</small></sup></h1>
-            
-            <!-- Notification Banner -->
-            <div v-if="notification.show" class="alert" :class="{
-                'alert-success': notification.type === 'success',
-                'alert-danger': notification.type === 'error',
-                'alert-warning': notification.type === 'warning',
-                'alert-info': notification.type === 'info'
-            }">
-                {{ notification.message }}
-            </div>
-            
-            <!-- Display user info and blog controls when logged in -->
-            <div v-if="!authenticated" class="auth-controls">
-                <button type="button" class="btn btn-outline-primary mr-2" @click="openLoginModal('ldap')">UNB Login</button>
-                <button type="button" class="btn btn-outline-info mr-2" @click="openLoginModal('local')">Blog Login</button>
-                <button type="button" class="btn btn-outline-success" @click="openRegisterModal()">Register</button>
-            </div>
-            
-            <div v-else class="auth-controls">
-                <span class="user-welcome mr-2">
-                    Welcome, {{ username }}!
-                    <span v-if="userType" class="badge badge-type" :class="userType">{{ userType === 'ldap' ? 'UNB' : userType }}</span>
-                    <span v-if="!verified && !mobileVerified" class="badge badge-danger">Unverified</span>
-                    <span v-else-if="verified && mobileVerified" class="badge badge-success">Fully Verified</span>
-                    <span v-else-if="verified" class="badge badge-info">Email Verified</span>
-                    <span v-else-if="mobileVerified" class="badge badge-info">Mobile Verified</span>
-                </span>
+            <!-- Blog List Section -->
+            <div class="blogs-container">
+                <h2 class="text-center mb-4">Recent Blogs</h2>
                 
-                <!-- Email verification -->
-                <button v-if="!hasEmail" type="button" class="btn btn-sm btn-outline-primary mr-2" @click="openEmailModal">Add Email</button>
-                <button v-else-if="!verified" type="button" class="btn btn-sm btn-outline-warning mr-2" @click="requestEmailVerification">Verify Email</button>
-                <button v-else type="button" class="btn btn-sm btn-outline-secondary mr-2" @click="openEmailModal">Update Email</button>
-                
-                <!-- Phone verification if SMS is enable -->
-                <template v-if="smsEnabled">
-                    <button v-if="!hasPhone" type="button" class="btn btn-sm btn-outline-primary mr-2" @click="openPhoneModal">Add Phone</button>
-                    <button v-else-if="!mobileVerified" type="button" class="btn btn-sm btn-outline-warning mr-2" @click="requestMobileVerification">Verify Phone</button>
-                    <button v-else type="button" class="btn btn-sm btn-outline-secondary mr-2" @click="openPhoneModal">Update Phone</button>
-                </template>
-                
-                <!-- Main Actions -->
-                <button type="button" class="btn btn-sm btn-outline-info mr-2" @click="openNotificationPrefsModal">Notification Settings</button>
-                <button type="button" class="btn btn-sm btn-outline-primary mr-2" @click="getUserBlogs">My Blogs</button>
-                <button type="button" class="btn btn-sm btn-outline-success mr-2" @click="openCreateBlogModal">Create Blog</button>
-                <button type="button" class="btn btn-sm btn-outline-danger" @click="logout">Logout</button>
-            </div>
-        </div>
-        
-        <!-- Blog List Section -->
-        <div class="blogs-container">
-            <h2 class="text-center mb-4">Recent Blogs</h2>
-            
-            <!-- Blog List Component -->
-            <blog-list 
-                :blogs="blogs" 
-                :loading="loading.blogs" 
-                :pagination="pagination"
-                @view-blog="getBlogDetails"
-                @load-more="loadMoreBlogs">
-            </blog-list>
-        </div>
-        
-        <!-- Login Modal -->
-        <modal v-if="showLoginModal" @close="showLoginModal = false" animation-type="zoom">
-            <template v-slot:header>
-                <h3>{{ loginForm.type === 'ldap' ? 'UNB Login' : 'Blog Login' }}</h3>
-            </template>
-            <template v-slot:body>
-                <!-- Error message ig login wrong -->
-                <div v-if="loginForm.error" class="alert alert-danger mb-3">
-                    {{ loginForm.error }}
-                </div>
-                
-                <!-- Tabs to switch between login types -->
-                <ul class="nav nav-tabs mb-3">
-                    <li class="nav-item">
-                        <a class="nav-link" :class="{ active: loginForm.type === 'ldap' }" href="#" @click.prevent="loginForm.type = 'ldap'">UNB Login</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" :class="{ active: loginForm.type === 'local' }" href="#" @click.prevent="loginForm.type = 'local'">Blog Login</a>
-                    </li>
-                </ul>
-                
-                <form @submit.prevent="login">
-                    <div class="form-group">
-                        <label for="loginUsername">{{ loginForm.type === 'ldap' ? 'UNB Username' : 'Username' }}</label>
-                        <input type="text" class="form-control" id="loginUsername" v-model="loginForm.username" 
-                               :placeholder="loginForm.type === 'ldap' ? 'Enter UNB username' : 'Enter username'" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="loginPassword">Password</label>
-                        <input type="password" class="form-control" id="loginPassword" v-model="loginForm.password" placeholder="Enter password" required>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.auth">
-                            <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
-                            Login
-                        </button>
-                    </div>
-                </form>
-            </template>
-            <template v-slot:footer>
-                <div class="d-flex justify-content-between w-100">
-                    <p class="mb-0">{{ loginForm.type === 'ldap' ? 'Login with your UNB credentials' : 'Login with your Blog account' }}</p>
-                    <div>
-                        <a href="#" v-if="loginForm.type === 'local'" @click.prevent="openRegisterModal(); showLoginModal = false;">Don't have an account? Register</a>
-                        <br v-if="loginForm.type === 'local'">
-                        <a href="#" v-if="loginForm.type === 'local'" @click.prevent="forceOpenForgotPassword()">Forgot password?</a>
-                    </div>
-                </div>
-            </template>
-        </modal>
-        
-        <!-- Registration Modal -->
-        <modal v-if="showRegisterModal" @close="showRegisterModal = false" animation-type="slide-right">
-            <template v-slot:header>
-                <h3>Register New Account</h3>
-            </template>
-            <template v-slot:body>
-                <!-- Display any registration error -->
-                <div v-if="registerForm.error" class="alert alert-danger mb-3">
-                    {{ registerForm.error }}
-                </div>
-                
-                <form @submit.prevent="register">
-                    <div class="form-group">
-                        <label for="registerUsername">Username</label>
-                        <input type="text" class="form-control" id="registerUsername" v-model="registerForm.username" placeholder="Choose a username" required>
-                        <small class="form-text text-muted">Username must be unique.</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="registerEmail">Email</label>
-                        <input type="email" class="form-control" id="registerEmail" v-model="registerForm.email" placeholder="Enter your email" required>
-                        <small class="form-text text-muted">You will need to verify this email address.</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="registerPassword">Password</label>
-                        <input type="password" class="form-control" id="registerPassword" v-model="registerForm.password" placeholder="Choose a password" required @input="updatePasswordStrength">
-                        <div class="password-strength" :class="passwordStrengthClass"></div>
-                        <small v-if="registerForm.password && passwordStrength.feedback" class="form-text" :class="{
-                            'text-danger': passwordStrengthClass === 'weak',
-                            'text-warning': passwordStrengthClass === 'medium',
-                            'text-success': passwordStrengthClass === 'strong'
-                        }">Password strength: {{ passwordStrength.feedback }}</small>
-                        <small class="form-text text-muted">Password must be at least 8 characters and contain both letters and numbers.</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="registerPasswordConfirm">Confirm Password</label>
-                        <input type="password" class="form-control" id="registerPasswordConfirm" v-model="registerForm.passwordConfirm" placeholder="Confirm your password" required>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.auth">
-                            <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
-                            Register
-                        </button>
-                    </div>
-                </form>
-            </template>
-            <template v-slot:footer>
-                <p class="mb-0">Already have an account? <a href="#" @click.prevent="openLoginModal('local'); showRegisterModal = false;">Login</a></p>
-            </template>
-        </modal>
-        
-        <!-- Update or add an email -->
-        <modal v-if="showEmailModal" @close="showEmailModal = false" animation-type="slide-top">
-            <template v-slot:header>
-                <h3>{{ hasEmail ? 'Update Email' : 'Add Email' }}</h3>
-            </template>
-            <template v-slot:body>
-                <!-- Error Alert -->
-                <div v-if="emailForm.error" class="alert alert-danger mb-3">
-                    {{ emailForm.error }}
-                </div>
-                
-                <form @submit.prevent="updateEmail">
-                    <div class="form-group">
-                        <label for="userEmail">Email Address</label>
-                        <input type="email" class="form-control" id="userEmail" v-model="emailForm.email" placeholder="Enter email address" required>
-                        <small class="form-text text-muted">
-                            {{ hasEmail ? 'Updating your email will require re-verification.' : 'You will need to verify this email address.' }}
-                        </small>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.auth">
-                            <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
-                            {{ hasEmail ? 'Update Email' : 'Add Email' }}
-                        </button>
-                    </div>
-                </form>
-            </template>
-        </modal>
-        
-        <!-- Add or update your phone number for SMS verification -->
-        <modal v-if="showPhoneModal" @close="showPhoneModal = false" animation-type="slide-top">
-            <template v-slot:header>
-                <h3>{{ hasPhone ? 'Update Phone Number' : 'Add Phone Number' }}</h3>
-            </template>
-            <template v-slot:body>
-                <!-- Error Alert -->
-                <div v-if="phoneForm.error" class="alert alert-danger mb-3">
-                    {{ phoneForm.error }}
-                </div>
-                
-                <form @submit.prevent="updatePhone">
-                    <div class="form-group">
-                        <label for="userPhone">Phone Number</label>
-                        <input type="tel" class="form-control" id="userPhone" v-model="phoneForm.phone" 
-                               placeholder="Enter phone number (e.g., +1234567890)" required>
-                        <small class="form-text text-muted">
-                            {{ hasPhone ? 'Updating your phone will require re-verification.' : 'You will need to verify this phone number with an SMS code.' }}
-                        </small>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.auth">
-                            <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
-                            {{ hasPhone ? 'Update Phone' : 'Add Phone' }}
-                        </button>
-                    </div>
-                </form>
-            </template>
-        </modal>
-        
-        <!-- Notification Preferences -->
-        <modal v-if="showNotificationPrefsModal" @close="showNotificationPrefsModal = false" animation-type="zoom">
-            <template v-slot:header>
-                <h3>Notification Preferences</h3>
-            </template>
-            <template v-slot:body>
-                <!-- Error Alert -->
-                <div v-if="notificationPrefsForm.error" class="alert alert-danger mb-3">
-                    {{ notificationPrefsForm.error }}
-                </div>
-                
-                <form @submit.prevent="updateNotificationPreferences">
-                    <div class="form-group">
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" id="notifyOnBlog" v-model="notificationPrefsForm.notifyOnBlog">
-                            <label class="custom-control-label" for="notifyOnBlog">Email me about new blogs</label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" id="notifyOnComment" v-model="notificationPrefsForm.notifyOnComment">
-                            <label class="custom-control-label" for="notifyOnComment">Email me about comments on my blogs</label>
-                        </div>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.auth">
-                            <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
-                            Save Preferences
-                        </button>
-                    </div>
-                </form>
-            </template>
-        </modal>
-        
-        <!-- Email OTP Verification -->
-        <modal v-if="showEmailOtpModal" @close="showEmailOtpModal = false" animation-type="zoom">
-            <template v-slot:header>
-                <h3>Email Verification</h3>
-            </template>
-            <template v-slot:body>
-                <p>Please enter the 6-digit OTP code that has been sent to your email address.</p>
-                
-                <!-- Error Alert -->
-                <div v-if="emailOtpForm.error" class="alert alert-danger mb-3">
-                    {{ emailOtpForm.error }}
-                </div>
-                
-                <form @submit.prevent="verifyEmailOTP">
-                    <div class="form-group">
-                        <label for="emailOtpInput">OTP Code</label>
-                        <input type="text" class="form-control" id="emailOtpInput" v-model="emailOtpForm.otp" placeholder="Enter 6-digit OTP" required maxlength="6" pattern="[0-9]{6}">
-                        <small class="form-text text-muted">The OTP will expire in 15 minutes.</small>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.verification">
-                            <span v-if="loading.verification" class="spinner-border spinner-border-sm mr-2" role="status"></span>
-                            Verify
-                        </button>
-                    </div>
-                </form>
-            </template>
-            <template v-slot:footer>
-                <p class="mb-0">Didn't receive the code? 
-                    <a href="#" @click.prevent="requestEmailVerification">Resend OTP</a>
-                </p>
-            </template>
-        </modal>
-        
-        <!-- Phone OTP Verification -->
-        <modal v-if="showMobileOtpModal" @close="showMobileOtpModal = false" animation-type="zoom">
-            <template v-slot:header>
-                <h3>Mobile Verification</h3>
-            </template>
-            <template v-slot:body>
-                <p>Please enter the 6-digit OTP code that has been sent to your phone number.</p>
-                
-                <!-- Error Alert -->
-                <div v-if="mobileOtpForm.error" class="alert alert-danger mb-3">
-                    {{ mobileOtpForm.error }}
-                </div>
-                
-                <form @submit.prevent="verifyMobileOTP">
-                    <div class="form-group">
-                        <label for="mobileOtpInput">OTP Code</label>
-                        <input type="text" class="form-control" id="mobileOtpInput" v-model="mobileOtpForm.otp" placeholder="Enter 6-digit OTP" required maxlength="6" pattern="[0-9]{6}">
-                        <small class="form-text text-muted">The OTP will expire in 15 minutes.</small>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.verification">
-                            <span v-if="loading.verification" class="spinner-border spinner-border-sm mr-2" role="status"></span>
-                            Verify
-                        </button>
-                    </div>
-                </form>
-            </template>
-            <template v-slot:footer>
-                <p class="mb-0">Didn't receive the code? 
-                    <a href="#" @click.prevent="requestMobileVerification">Resend OTP</a>
-                </p>
-            </template>
-        </modal>
-        
-        <!-- Creating Blog Modal -->
-        <modal v-if="showCreateBlogModal" @close="showCreateBlogModal = false" animation-type="slide-top">
-            <template v-slot:header>
-                <h3>Create Blog</h3>
-            </template>
-            <template v-slot:body>
-                <form @submit.prevent="createBlog">
-                    <div class="form-group">
-                        <label for="newBlogTitle">Title</label>
-                        <input type="text" class="form-control" id="newBlogTitle" v-model="newBlog.title" placeholder="Enter blog title" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="newBlogContent">Content</label>
-                        <div class="d-flex justify-content-end mb-2">
-                            <button type="button" class="btn btn-sm btn-outline-info" @click="openAiHelperModal('generate')">
-                                <i class="fas fa-robot"></i> AI Generate
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-primary ml-2" @click="openAiHelperModal('enhance')">
-                                <i class="fas fa-magic"></i> AI Enhance
-                            </button>
-                        </div>
-                        <textarea class="form-control" id="newBlogContent" v-model="newBlog.content" rows="10" placeholder="Write your blog content here...😊" required></textarea>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.blog">
-                            <span v-if="loading.blog" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                            Create Blog
-                        </button>
-                    </div>
-                </form>
-            </template>
-        </modal>
-        
-        <!-- Editing Blog Modal -->
-        <modal v-if="showEditBlogModal" @close="showEditBlogModal = false" animation-type="slide-right">
-            <template v-slot:header>
-                <h3>Edit Blog</h3>
-            </template>
-            <template v-slot:body>
-                <form @submit.prevent="updateBlog">
-                    <div class="form-group">
-                        <label for="editBlogTitle">Title</label>
-                        <input type="text" class="form-control" id="editBlogTitle" v-model="editBlog.title" placeholder="Enter blog title" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="editBlogContent">Content</label>
-                        <div class="d-flex justify-content-end mb-2">
-                            <button type="button" class="btn btn-sm btn-outline-info" @click="openAiHelperModal('generate')">
-                                <i class="fas fa-robot"></i> AI Generate
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-primary ml-2" @click="openAiHelperModal('enhance')">
-                                <i class="fas fa-magic"></i> AI Enhance
-                            </button>
-                        </div>
-                        <textarea class="form-control" id="editBlogContent" v-model="editBlog.content" rows="10" placeholder="Write your blog content here...😊" required></textarea>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary mr-2" :disabled="loading.blog">
-                            <span v-if="loading.blog" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                            Update
-                        </button>
-                        <button type="button" class="btn btn-danger" @click="deleteBlog(selectedBlog)">Delete</button>
-                    </div>
-                </form>
-            </template>
-        </modal>
-        
-        <!-- Blog Details -->
-        <modal v-if="showBlogModal" @close="showBlogModal = false" animation-type="flip">
-            <template v-slot:header>
-                <div v-if="selectedBlog">
-                    <h3>{{ selectedBlog.title }}</h3>
-                    <div class="blog-meta">
-                        <span class="blog-author">By {{ selectedBlog.author }}</span>
-                        <span class="blog-date">{{ formatDate(selectedBlog.date) }}</span>
-                    </div>
-                </div>
-                <div v-else>
-                    <h3>Loading...</h3>
-                </div>
-            </template>
-            <template v-slot:body>
-                <!-- Use the blog-detail component -->
-                <blog-detail 
-                    v-if="selectedBlog"
-                    :blog="selectedBlog" 
-                    :comments="selectedComments"
-                    :loading="{ blog: loading.blog, comments: loading.comments }"
-                    :user-id="userId"
-                    :authenticated="authenticated"
-                    :verified="verified"
-                    :mobile-verified="mobileVerified"
-                    @edit-blog="prepareEditBlog"
-                    @delete-blog="deleteBlog"
-                    @submit-comment="createComment"
-                    @reply-to-comment="replyToComment"
-                    @delete-comment="deleteComment">
-                </blog-detail>
-            </template>
-        </modal>
-        
-        <!-- User Blogs -->
-        <modal v-if="showUserBlogsModal" @close="showUserBlogsModal = false" animation-type="slide-right">
-            <template v-slot:header>
-                <h3>My Blogs</h3>
-            </template>
-            <template v-slot:body>
-                <!-- Use user-blogs component -->
-                <user-blogs 
-                    :blogs="userBlogs" 
-                    :loading="loading.blogs"
+                <!-- Blog List Component -->
+                <blog-list 
+                    :blogs="blogs" 
+                    :loading="loading.blogs" 
+                    :pagination="pagination"
                     @view-blog="getBlogDetails"
-                    @edit-blog="prepareEditBlog"
-                    @delete-blog="deleteBlog"
-                    @create-blog="openCreateBlogModal">
-                </user-blogs>
-            </template>
-        </modal>
-        
-        <!-- Modal to use AI for writing or enhancing blog content -->
-        <modal v-if="showAiHelperModal" @close="showAiHelperModal = false" animation-type="zoom">
-            <template v-slot:header>
-                <h3>AI Writing Assistant</h3>
-            </template>
-            <template v-slot:body>
-                <!-- Error Alert -->
-                <div v-if="aiHelper.error" class="alert alert-danger mb-3">
-                    {{ aiHelper.error }}
-                </div>
-                
-                <form @submit.prevent="useAI">
-                    <div class="form-group">
-                        <label for="aiMode">Mode</label>
-                        <select class="form-control" id="aiMode" v-model="aiHelper.mode">
-                            <option value="generate">Generate New Content</option>
-                            <option value="enhance">Enhance Existing Content</option>
-                        </select>
+                    @load-more="loadMoreBlogs">
+                </blog-list>
+            </div>
+            
+            <!-- Login Modal -->
+            <modal v-if="showLoginModal" @close="showLoginModal = false" animation-type="zoom">
+                <template v-slot:header>
+                    <h3>{{ loginForm.type === 'ldap' ? 'UNB Login' : 'Blog Login' }}</h3>
+                </template>
+                <template v-slot:body>
+                    <!-- Error message ig login wrong -->
+                    <div v-if="loginForm.error" class="alert alert-danger mb-3">
+                        {{ loginForm.error }}
                     </div>
                     
-                    <div class="form-group">
-                        <label for="aiPrompt">{{ aiHelper.mode === 'generate' ? 'What should I write about?' : 'How should I improve the content?' }}</label>
-                        <textarea class="form-control" id="aiPrompt" v-model="aiHelper.prompt" rows="3" 
-                            :placeholder="aiHelper.mode === 'generate' ? 'Write a blog post about renewable energy solutions...' : 'Make it more engaging, fix grammar errors...'"></textarea>
+                    <!-- Tabs to switch between login types -->
+                    <ul class="nav nav-tabs mb-3">
+                        <li class="nav-item">
+                            <a class="nav-link" :class="{ active: loginForm.type === 'ldap' }" href="#" @click.prevent="loginForm.type = 'ldap'">UNB Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" :class="{ active: loginForm.type === 'local' }" href="#" @click.prevent="loginForm.type = 'local'">Blog Login</a>
+                        </li>
+                    </ul>
+                    
+                    <form @submit.prevent="login">
+                        <div class="form-group">
+                            <label for="loginUsername">{{ loginForm.type === 'ldap' ? 'UNB Username' : 'Username' }}</label>
+                            <input type="text" class="form-control" id="loginUsername" v-model="loginForm.username" 
+                                   :placeholder="loginForm.type === 'ldap' ? 'Enter UNB username' : 'Enter username'" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" class="form-control" id="loginPassword" v-model="loginForm.password" placeholder="Enter password" required>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.auth">
+                                <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
+                                Login
+                            </button>
+                        </div>
+                    </form>
+                </template>
+                <template v-slot:footer>
+                    <div class="d-flex justify-content-between w-100">
+                        <p class="mb-0">{{ loginForm.type === 'ldap' ? 'Login with your UNB credentials' : 'Login with your Blog account' }}</p>
+                        <div>
+                            <a href="#" v-if="loginForm.type === 'local'" @click.prevent="openRegisterModal(); showLoginModal = false;">Don't have an account? Register</a>
+                            <br v-if="loginForm.type === 'local'">
+                            <a href="#" v-if="loginForm.type === 'local'" @click.prevent="forceOpenForgotPassword()">Forgot password?</a>
+                        </div>
+                    </div>
+                </template>
+            </modal>
+            
+            <!-- Registration Modal -->
+            <modal v-if="showRegisterModal" @close="showRegisterModal = false" animation-type="slide-right">
+                <template v-slot:header>
+                    <h3>Register New Account</h3>
+                </template>
+                <template v-slot:body>
+                    <!-- Display any registration error -->
+                    <div v-if="registerForm.error" class="alert alert-danger mb-3">
+                        {{ registerForm.error }}
                     </div>
                     
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="aiHelper.loading">
-                            <span v-if="aiHelper.loading" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                            {{ aiHelper.mode === 'generate' ? 'Generate Content' : 'Enhance Content' }}
-                        </button>
+                    <form @submit.prevent="register">
+                        <div class="form-group">
+                            <label for="registerUsername">Username</label>
+                            <input type="text" class="form-control" id="registerUsername" v-model="registerForm.username" placeholder="Choose a username" required>
+                            <small class="form-text text-muted">Username must be unique.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerEmail">Email</label>
+                            <input type="email" class="form-control" id="registerEmail" v-model="registerForm.email" placeholder="Enter your email" required>
+                            <small class="form-text text-muted">You will need to verify this email address.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPassword">Password</label>
+                            <input type="password" class="form-control" id="registerPassword" v-model="registerForm.password" placeholder="Choose a password" required @input="updatePasswordStrength">
+                            <div class="password-strength" :class="passwordStrengthClass"></div>
+                            <small v-if="registerForm.password && passwordStrength.feedback" class="form-text" :class="{
+                                'text-danger': passwordStrengthClass === 'weak',
+                                'text-warning': passwordStrengthClass === 'medium',
+                                'text-success': passwordStrengthClass === 'strong'
+                            }">Password strength: {{ passwordStrength.feedback }}</small>
+                            <small class="form-text text-muted">Password must be at least 8 characters and contain both letters and numbers.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPasswordConfirm">Confirm Password</label>
+                            <input type="password" class="form-control" id="registerPasswordConfirm" v-model="registerForm.passwordConfirm" placeholder="Confirm your password" required>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.auth">
+                                <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
+                                Register
+                            </button>
+                        </div>
+                    </form>
+                </template>
+                <template v-slot:footer>
+                    <p class="mb-0">Already have an account? <a href="#" @click.prevent="openLoginModal('local'); showRegisterModal = false;">Login</a></p>
+                </template>
+            </modal>
+            
+            <!-- Update or add an email -->
+            <modal v-if="showEmailModal" @close="showEmailModal = false" animation-type="slide-top">
+                <template v-slot:header>
+                    <h3>{{ hasEmail ? 'Update Email' : 'Add Email' }}</h3>
+                </template>
+                <template v-slot:body>
+                    <!-- Error Alert -->
+                    <div v-if="emailForm.error" class="alert alert-danger mb-3">
+                        {{ emailForm.error }}
                     </div>
-                </form>
-                
-                <div v-if="aiHelper.generatedContent" class="mt-4">
-                    <h5>Generated Content</h5>
-                    <div class="border p-3 rounded bg-light">
-                        <div style="white-space: pre-line;">{{ aiHelper.generatedContent }}</div>
+                    
+                    <form @submit.prevent="updateEmail">
+                        <div class="form-group">
+                            <label for="userEmail">Email Address</label>
+                            <input type="email" class="form-control" id="userEmail" v-model="emailForm.email" placeholder="Enter email address" required>
+                            <small class="form-text text-muted">
+                                {{ hasEmail ? 'Updating your email will require re-verification.' : 'You will need to verify this email address.' }}
+                            </small>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.auth">
+                                <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
+                                {{ hasEmail ? 'Update Email' : 'Add Email' }}
+                            </button>
+                        </div>
+                    </form>
+                </template>
+            </modal>
+            
+            <!-- Add or update your phone number for SMS verification -->
+            <modal v-if="showPhoneModal" @close="showPhoneModal = false" animation-type="slide-top">
+                <template v-slot:header>
+                    <h3>{{ hasPhone ? 'Update Phone Number' : 'Add Phone Number' }}</h3>
+                </template>
+                <template v-slot:body>
+                    <!-- Error Alert -->
+                    <div v-if="phoneForm.error" class="alert alert-danger mb-3">
+                        {{ phoneForm.error }}
                     </div>
-                    <div class="text-center mt-3">
-                        <button type="button" class="btn btn-success" @click="applyAiContent">
-                            Apply to Blog
-                        </button>
+                    
+                    <form @submit.prevent="updatePhone">
+                        <div class="form-group">
+                            <label for="userPhone">Phone Number</label>
+                            <input type="tel" class="form-control" id="userPhone" v-model="phoneForm.phone" 
+                                   placeholder="Enter phone number (e.g., +1234567890)" required>
+                            <small class="form-text text-muted">
+                                {{ hasPhone ? 'Updating your phone will require re-verification.' : 'You will need to verify this phone number with an SMS code.' }}
+                            </small>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.auth">
+                                <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
+                                {{ hasPhone ? 'Update Phone' : 'Add Phone' }}
+                            </button>
+                        </div>
+                    </form>
+                </template>
+            </modal>
+            
+            <!-- Notification Preferences -->
+            <modal v-if="showNotificationPrefsModal" @close="showNotificationPrefsModal = false" animation-type="zoom">
+                <template v-slot:header>
+                    <h3>Notification Preferences</h3>
+                </template>
+                <template v-slot:body>
+                    <!-- Error Alert -->
+                    <div v-if="notificationPrefsForm.error" class="alert alert-danger mb-3">
+                        {{ notificationPrefsForm.error }}
                     </div>
-                </div>
-            </template>
-        </modal>
-        
-        <!-- Forgot Password Modal -->
-        <modal v-if="showForgotPasswordModal" @close="showForgotPasswordModal = false" animation-type="zoom">
-            <template v-slot:header>
-                <h3>Reset Password</h3>
-            </template>
-            <template v-slot:body>
-                <!-- Error Alert -->
-                <div v-if="forgotPasswordForm.error" class="alert alert-danger mb-3">
-                    {{ forgotPasswordForm.error }}
-                </div>
-                
-                <!-- Success Message -->
-                <div v-if="forgotPasswordForm.success" class="alert alert-success mb-3">
-                    {{ forgotPasswordForm.success }}
-                </div>
-                
-                <!-- Step 1: Enter the Email Address -->
-                <form v-if="!forgotPasswordForm.otpSent && !forgotPasswordForm.success" @submit.prevent="requestPasswordReset">
-                    <div class="form-group">
-                        <label for="resetEmail">Email Address</label>
-                        <input type="email" class="form-control" id="resetEmail" v-model="forgotPasswordForm.email" placeholder="Enter your email address" required>
-                        <small class="form-text text-muted">
-                            We'll send a password reset OTP to this email address.
-                        </small>
+                    
+                    <form @submit.prevent="updateNotificationPreferences">
+                        <div class="form-group">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="notifyOnBlog" v-model="notificationPrefsForm.notifyOnBlog">
+                                <label class="custom-control-label" for="notifyOnBlog">Email me about new blogs</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="notifyOnComment" v-model="notificationPrefsForm.notifyOnComment">
+                                <label class="custom-control-label" for="notifyOnComment">Email me about comments on my blogs</label>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.auth">
+                                <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status"></span>
+                                Save Preferences
+                            </button>
+                        </div>
+                    </form>
+                </template>
+            </modal>
+            
+            <!-- Email OTP Verification -->
+            <modal v-if="showEmailOtpModal" @close="showEmailOtpModal = false" animation-type="zoom">
+                <template v-slot:header>
+                    <h3>Email Verification</h3>
+                </template>
+                <template v-slot:body>
+                    <p>Please enter the 6-digit OTP code that has been sent to your email address.</p>
+                    
+                    <!-- Error Alert -->
+                    <div v-if="emailOtpForm.error" class="alert alert-danger mb-3">
+                        {{ emailOtpForm.error }}
                     </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.auth">
-                            <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                            Send OTP
-                        </button>
+                    
+                    <form @submit.prevent="verifyEmailOTP">
+                        <div class="form-group">
+                            <label for="emailOtpInput">OTP Code</label>
+                            <input type="text" class="form-control" id="emailOtpInput" v-model="emailOtpForm.otp" placeholder="Enter 6-digit OTP" required maxlength="6" pattern="[0-9]{6}">
+                            <small class="form-text text-muted">The OTP will expire in 15 minutes.</small>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.verification">
+                                <span v-if="loading.verification" class="spinner-border spinner-border-sm mr-2" role="status"></span>
+                                Verify
+                            </button>
+                        </div>
+                    </form>
+                </template>
+                <template v-slot:footer>
+                    <p class="mb-0">Didn't receive the code? 
+                        <a href="#" @click.prevent="requestEmailVerification">Resend OTP</a>
+                    </p>
+                </template>
+            </modal>
+            
+            <!-- Phone OTP Verification -->
+            <modal v-if="showMobileOtpModal" @close="showMobileOtpModal = false" animation-type="zoom">
+                <template v-slot:header>
+                    <h3>Mobile Verification</h3>
+                </template>
+                <template v-slot:body>
+                    <p>Please enter the 6-digit OTP code that has been sent to your phone number.</p>
+                    
+                    <!-- Error Alert -->
+                    <div v-if="mobileOtpForm.error" class="alert alert-danger mb-3">
+                        {{ mobileOtpForm.error }}
                     </div>
-                </form>
-                
-                <!-- Step 2: Enter the OTP Code -->
-                <form v-if="forgotPasswordForm.otpSent && !forgotPasswordForm.otpVerified && !forgotPasswordForm.success" @submit.prevent="verifyResetOTP">
-                    <div class="form-group">
-                        <label for="resetOTP">OTP Code</label>
-                        <input type="text" class="form-control" id="resetOTP" v-model="forgotPasswordForm.otp" placeholder="Enter 6-digit OTP" required maxlength="6" pattern="[0-9]{6}">
-                        <small class="form-text text-muted">
-                            Enter the 6-digit code sent to your email.
-                        </small>
+                    
+                    <form @submit.prevent="verifyMobileOTP">
+                        <div class="form-group">
+                            <label for="mobileOtpInput">OTP Code</label>
+                            <input type="text" class="form-control" id="mobileOtpInput" v-model="mobileOtpForm.otp" placeholder="Enter 6-digit OTP" required maxlength="6" pattern="[0-9]{6}">
+                            <small class="form-text text-muted">The OTP will expire in 15 minutes.</small>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.verification">
+                                <span v-if="loading.verification" class="spinner-border spinner-border-sm mr-2" role="status"></span>
+                                Verify
+                            </button>
+                        </div>
+                    </form>
+                </template>
+                <template v-slot:footer>
+                    <p class="mb-0">Didn't receive the code? 
+                        <a href="#" @click.prevent="requestMobileVerification">Resend OTP</a>
+                    </p>
+                </template>
+            </modal>
+            
+            <!-- Creating Blog Modal -->
+            <modal v-if="showCreateBlogModal" @close="showCreateBlogModal = false" animation-type="slide-top">
+                <template v-slot:header>
+                    <h3>Create Blog</h3>
+                </template>
+                <template v-slot:body>
+                    <form @submit.prevent="createBlog">
+                        <div class="form-group">
+                            <label for="newBlogTitle">Title</label>
+                            <input type="text" class="form-control" id="newBlogTitle" v-model="newBlog.title" placeholder="Enter blog title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newBlogContent">Content</label>
+                            <div class="d-flex justify-content-end mb-2">
+                                <button type="button" class="btn btn-sm btn-outline-info" @click="openAiHelperModal('generate')">
+                                    <i class="fas fa-robot"></i> AI Generate
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary ml-2" @click="openAiHelperModal('enhance')">
+                                    <i class="fas fa-magic"></i> AI Enhance
+                                </button>
+                            </div>
+                            <textarea class="form-control" id="newBlogContent" v-model="newBlog.content" rows="10" placeholder="Write your blog content here...😊" required></textarea>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.blog">
+                                <span v-if="loading.blog" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                                Create Blog
+                            </button>
+                        </div>
+                    </form>
+                </template>
+            </modal>
+            
+            <!-- Editing Blog Modal -->
+            <modal v-if="showEditBlogModal" @close="showEditBlogModal = false" animation-type="slide-right">
+                <template v-slot:header>
+                    <h3>Edit Blog</h3>
+                </template>
+                <template v-slot:body>
+                    <form @submit.prevent="updateBlog">
+                        <div class="form-group">
+                            <label for="editBlogTitle">Title</label>
+                            <input type="text" class="form-control" id="editBlogTitle" v-model="editBlog.title" placeholder="Enter blog title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editBlogContent">Content</label>
+                            <div class="d-flex justify-content-end mb-2">
+                                <button type="button" class="btn btn-sm btn-outline-info" @click="openAiHelperModal('generate')">
+                                    <i class="fas fa-robot"></i> AI Generate
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary ml-2" @click="openAiHelperModal('enhance')">
+                                    <i class="fas fa-magic"></i> AI Enhance
+                                </button>
+                            </div>
+                            <textarea class="form-control" id="editBlogContent" v-model="editBlog.content" rows="10" placeholder="Write your blog content here...😊" required></textarea>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary mr-2" :disabled="loading.blog">
+                                <span v-if="loading.blog" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                                Update
+                            </button>
+                            <button type="button" class="btn btn-danger" @click="deleteBlog(selectedBlog)">Delete</button>
+                        </div>
+                    </form>
+                </template>
+            </modal>
+            
+            <!-- Blog Details -->
+            <modal v-if="showBlogModal" @close="showBlogModal = false" animation-type="flip">
+                <template v-slot:header>
+                    <div v-if="selectedBlog">
+                        <h3>{{ selectedBlog.title }}</h3>
+                        <div class="blog-meta">
+                            <span class="blog-author">By {{ selectedBlog.author }}</span>
+                            <span class="blog-date">{{ formatDate(selectedBlog.date) }}</span>
+                        </div>
                     </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.auth">
-                            <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                            Verify OTP
-                        </button>
+                    <div v-else>
+                        <h3>Loading...</h3>
                     </div>
-                </form>
-                
-                <!-- Step 3: Reset Password -->
-                <form v-if="forgotPasswordForm.otpVerified && !forgotPasswordForm.success" @submit.prevent="resetPassword">
-                    <div class="form-group">
-                        <label>Username</label>
-                        <p class="form-control-static">{{ forgotPasswordForm.username }}</p>
+                </template>
+                <template v-slot:body>
+                    <!-- Use the blog-detail component -->
+                    <blog-detail 
+                        v-if="selectedBlog"
+                        :blog="selectedBlog" 
+                        :comments="selectedComments"
+                        :loading="{ blog: loading.blog, comments: loading.comments }"
+                        :user-id="userId"
+                        :authenticated="authenticated"
+                        :verified="verified"
+                        :mobile-verified="mobileVerified"
+                        @edit-blog="prepareEditBlog"
+                        @delete-blog="deleteBlog"
+                        @submit-comment="createComment"
+                        @reply-to-comment="replyToComment"
+                        @delete-comment="deleteComment">
+                    </blog-detail>
+                </template>
+            </modal>
+            
+            <!-- User Blogs -->
+            <modal v-if="showUserBlogsModal" @close="showUserBlogsModal = false" animation-type="slide-right">
+                <template v-slot:header>
+                    <h3>My Blogs</h3>
+                </template>
+                <template v-slot:body>
+                    <!-- Use user-blogs component -->
+                    <user-blogs 
+                        :blogs="userBlogs" 
+                        :loading="loading.blogs"
+                        @view-blog="getBlogDetails"
+                        @edit-blog="prepareEditBlog"
+                        @delete-blog="deleteBlog"
+                        @create-blog="openCreateBlogModal">
+                    </user-blogs>
+                </template>
+            </modal>
+            
+            <!-- Modal to use AI for writing or enhancing blog content -->
+            <modal v-if="showAiHelperModal" @close="showAiHelperModal = false" animation-type="zoom">
+                <template v-slot:header>
+                    <h3>AI Writing Assistant</h3>
+                </template>
+                <template v-slot:body>
+                    <!-- Error Alert -->
+                    <div v-if="aiHelper.error" class="alert alert-danger mb-3">
+                        {{ aiHelper.error }}
                     </div>
-                    <div class="form-group">
-                        <label for="newPassword">New Password</label>
-                        <input type="password" class="form-control" id="newPassword" v-model="forgotPasswordForm.password" placeholder="Enter new password" required>
-                        <small class="form-text text-muted">Password must be at least 8 characters and contain both letters and numbers.</small>
+                    
+                    <form @submit.prevent="useAI">
+                        <div class="form-group">
+                            <label for="aiMode">Mode</label>
+                            <select class="form-control" id="aiMode" v-model="aiHelper.mode">
+                                <option value="generate">Generate New Content</option>
+                                <option value="enhance">Enhance Existing Content</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="aiPrompt">{{ aiHelper.mode === 'generate' ? 'What should I write about?' : 'How should I improve the content?' }}</label>
+                            <textarea class="form-control" id="aiPrompt" v-model="aiHelper.prompt" rows="3" 
+                                :placeholder="aiHelper.mode === 'generate' ? 'Write a blog post about renewable energy solutions...' : 'Make it more engaging, fix grammar errors...'"></textarea>
+                        </div>
+                        
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="aiHelper.loading">
+                                <span v-if="aiHelper.loading" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                                {{ aiHelper.mode === 'generate' ? 'Generate Content' : 'Enhance Content' }}
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div v-if="aiHelper.generatedContent" class="mt-4">
+                        <h5>Generated Content</h5>
+                        <div class="border p-3 rounded bg-light">
+                            <div style="white-space: pre-line;">{{ aiHelper.generatedContent }}</div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <button type="button" class="btn btn-success" @click="applyAiContent">
+                                Apply to Blog
+                            </button>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="confirmNewPassword">Confirm New Password</label>
-                        <input type="password" class="form-control" id="confirmNewPassword" v-model="forgotPasswordForm.passwordConfirm" placeholder="Confirm new password" required>
+                </template>
+            </modal>
+            
+            <!-- Forgot Password Modal -->
+            <modal v-if="showForgotPasswordModal" @close="showForgotPasswordModal = false" animation-type="zoom">
+                <template v-slot:header>
+                    <h3>Reset Password</h3>
+                </template>
+                <template v-slot:body>
+                    <!-- Error Alert -->
+                    <div v-if="forgotPasswordForm.error" class="alert alert-danger mb-3">
+                        {{ forgotPasswordForm.error }}
                     </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.auth">
-                            <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                            Reset Password
-                        </button>
+                    
+                    <!-- Success Message -->
+                    <div v-if="forgotPasswordForm.success" class="alert alert-success mb-3">
+                        {{ forgotPasswordForm.success }}
                     </div>
-                </form>
-            </template>
-            <template v-slot:footer>
-                <div class="d-flex justify-content-between w-100">
-                    <a href="#" @click.prevent="showForgotPasswordModal = false; openLoginModal('local')">Back to login</a>
-                    <a v-if="forgotPasswordForm.otpSent && !forgotPasswordForm.otpVerified" href="#" @click.prevent="requestPasswordReset">Resend OTP</a>
-                </div>
-            </template>
-        </modal>
-        
-        <!-- Reset Password Modal -->
-        <modal v-if="showResetPasswordModal" @close="showResetPasswordModal = false" animation-type="zoom">
-            <template v-slot:header>
-                <h3>Set New Password</h3>
-            </template>
-            <template v-slot:body>
-                <!-- Error Alert -->
-                <div v-if="resetPasswordForm.error" class="alert alert-danger mb-3">
-                    {{ resetPasswordForm.error }}
-                </div>
-                
-                <!-- Success Message -->
-                <div v-if="resetPasswordForm.success" class="alert alert-success mb-3">
-                    {{ resetPasswordForm.success }}
-                </div>
-                
-                <div v-if="!resetPasswordForm.verified && !resetPasswordForm.success" class="alert alert-info">
-                    Verifying reset token...
-                </div>
-                
-                <form v-if="resetPasswordForm.verified && !resetPasswordForm.success" @submit.prevent="completePasswordReset">
-                    <div class="form-group">
-                        <label>Username</label>
-                        <p class="form-control-static">{{ resetPasswordForm.username }}</p>
+                    
+                    <!-- Step 1: Enter the Email Address -->
+                    <form v-if="!forgotPasswordForm.otpSent && !forgotPasswordForm.success" @submit.prevent="requestPasswordReset">
+                        <div class="form-group">
+                            <label for="resetEmail">Email Address</label>
+                            <input type="email" class="form-control" id="resetEmail" v-model="forgotPasswordForm.email" placeholder="Enter your email address" required>
+                            <small class="form-text text-muted">
+                                We'll send a password reset OTP to this email address.
+                            </small>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.auth">
+                                <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                                Send OTP
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Step 2: Enter the OTP Code -->
+                    <form v-if="forgotPasswordForm.otpSent && !forgotPasswordForm.otpVerified && !forgotPasswordForm.success" @submit.prevent="verifyResetOTP">
+                        <div class="form-group">
+                            <label for="resetOTP">OTP Code</label>
+                            <input type="text" class="form-control" id="resetOTP" v-model="forgotPasswordForm.otp" placeholder="Enter 6-digit OTP" required maxlength="6" pattern="[0-9]{6}">
+                            <small class="form-text text-muted">
+                                Enter the 6-digit code sent to your email.
+                            </small>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.auth">
+                                <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                                Verify OTP
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Step 3: Reset Password -->
+                    <form v-if="forgotPasswordForm.otpVerified && !forgotPasswordForm.success" @submit.prevent="resetPassword">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <p class="form-control-static">{{ forgotPasswordForm.username }}</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword">New Password</label>
+                            <input type="password" class="form-control" id="newPassword" v-model="forgotPasswordForm.password" placeholder="Enter new password" required>
+                            <small class="form-text text-muted">Password must be at least 8 characters and contain both letters and numbers.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmNewPassword">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirmNewPassword" v-model="forgotPasswordForm.passwordConfirm" placeholder="Confirm new password" required>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.auth">
+                                <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                                Reset Password
+                            </button>
+                        </div>
+                    </form>
+                </template>
+                <template v-slot:footer>
+                    <div class="d-flex justify-content-between w-100">
+                        <a href="#" @click.prevent="showForgotPasswordModal = false; openLoginModal('local')">Back to login</a>
+                        <a v-if="forgotPasswordForm.otpSent && !forgotPasswordForm.otpVerified" href="#" @click.prevent="requestPasswordReset">Resend OTP</a>
                     </div>
-                    <div class="form-group">
-                        <label for="newPassword">New Password</label>
-                        <input type="password" class="form-control" id="newPassword" v-model="resetPasswordForm.password" placeholder="Enter new password" required @input="updatePasswordStrength">
-                        <div class="password-strength" :class="passwordStrengthClass"></div>
-                        <small v-if="resetPasswordForm.password && passwordStrength.feedback" class="form-text" :class="{
-                            'text-danger': passwordStrengthClass === 'weak',
-                            'text-warning': passwordStrengthClass === 'medium',
-                            'text-success': passwordStrengthClass === 'strong'
-                        }">Password strength: {{ passwordStrength.feedback }}</small>
-                        <small class="form-text text-muted">Password must be at least 8 characters and contain both letters and numbers.</small>
+                </template>
+            </modal>
+            
+            <!-- Reset Password Modal -->
+            <modal v-if="showResetPasswordModal" @close="showResetPasswordModal = false" animation-type="zoom">
+                <template v-slot:header>
+                    <h3>Set New Password</h3>
+                </template>
+                <template v-slot:body>
+                    <!-- Error Alert -->
+                    <div v-if="resetPasswordForm.error" class="alert alert-danger mb-3">
+                        {{ resetPasswordForm.error }}
                     </div>
-                    <div class="form-group">
-                        <label for="confirmNewPassword">Confirm New Password</label>
-                        <input type="password" class="form-control" id="confirmNewPassword" v-model="resetPasswordForm.passwordConfirm" placeholder="Confirm new password" required>
+                    
+                    <!-- Success Message -->
+                    <div v-if="resetPasswordForm.success" class="alert alert-success mb-3">
+                        {{ resetPasswordForm.success }}
                     </div>
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary" :disabled="loading.auth">
-                            <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
-                            Reset Password
-                        </button>
+                    
+                    <div v-if="!resetPasswordForm.verified && !resetPasswordForm.success" class="alert alert-info">
+                        Verifying reset token...
                     </div>
-                </form>
-            </template>
-            <template v-slot:footer v-if="resetPasswordForm.success">
-                <div class="d-flex justify-content-between w-100">
-                    <a href="#" @click.prevent="showResetPasswordModal = false; openLoginModal('local')">Go to login</a>
-                </div>
-            </template>
-        </modal>
-        
-        <!-- Modal Component Template -->
-        <script type="text/x-template" id="modal-template">
-            <transition :name="animationType || 'modal'" appear>
-                <div class="modal-backdrop">
-                    <div class="modal" :class="'animation-' + animationType">
-                        <header class="modal-header">
-                            <slot name="header">Default Header</slot>
-                            <button type="button" class="btn-close" @click="$emit('close')">×</button>
-                        </header>
-                        <section class="modal-body">
-                            <slot name="body">Default Body</slot>
-                        </section>
-                        <footer class="modal-footer">
-                            <slot name="footer">
-                                <button type="button" class="btn btn-secondary" @click="$emit('close')">Close</button>
-                            </slot>
-                        </footer>
+                    
+                    <form v-if="resetPasswordForm.verified && !resetPasswordForm.success" @submit.prevent="completePasswordReset">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <p class="form-control-static">{{ resetPasswordForm.username }}</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword">New Password</label>
+                            <input type="password" class="form-control" id="newPassword" v-model="resetPasswordForm.password" placeholder="Enter new password" required @input="updatePasswordStrength">
+                            <div class="password-strength" :class="passwordStrengthClass"></div>
+                            <small v-if="resetPasswordForm.password && passwordStrength.feedback" class="form-text" :class="{
+                                'text-danger': passwordStrengthClass === 'weak',
+                                'text-warning': passwordStrengthClass === 'medium',
+                                'text-success': passwordStrengthClass === 'strong'
+                            }">Password strength: {{ passwordStrength.feedback }}</small>
+                            <small class="form-text text-muted">Password must be at least 8 characters and contain both letters and numbers.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmNewPassword">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirmNewPassword" v-model="resetPasswordForm.passwordConfirm" placeholder="Confirm new password" required>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary" :disabled="loading.auth">
+                                <span v-if="loading.auth" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                                Reset Password
+                            </button>
+                        </div>
+                    </form>
+                </template>
+                <template v-slot:footer v-if="resetPasswordForm.success">
+                    <div class="d-flex justify-content-between w-100">
+                        <a href="#" @click.prevent="showResetPasswordModal = false; openLoginModal('local')">Go to login</a>
                     </div>
-                </div>
-            </transition>
-        </script>
+                </template>
+            </modal>
+            
+            <!-- Modal Component Template -->
+            <script type="text/x-template" id="modal-template">
+                <transition :name="animationType || 'modal'" appear>
+                    <div class="modal-backdrop">
+                        <div class="modal" :class="'animation-' + animationType">
+                            <header class="modal-header">
+                                <slot name="header">Default Header</slot>
+                                <button type="button" class="btn-close" @click="$emit('close')">×</button>
+                            </header>
+                            <section class="modal-body">
+                                <slot name="body">Default Body</slot>
+                            </section>
+                            <footer class="modal-footer">
+                                <slot name="footer">
+                                    <button type="button" class="btn btn-secondary" @click="$emit('close')">Close</button>
+                                </slot>
+                            </footer>
+                        </div>
+                    </div>
+                </transition>
+            </script>
+        </div>
+        <div v-else class="text-center my-5">
+            <div class="spinner-border" role="status"></div>
+            <p>Loading...</p>
+        </div>
     </div>
     
     <!-- External Scripts -->
@@ -678,6 +689,7 @@
     
     <!-- Utility Scripts -->
     <script src="../static/js/utils/notifications.js"></script>
+    <script src="../static/js/utils/formatters.js"></script>
     
     <!-- Component Scripts -->
     <script src="../static/js/components/modal.js"></script>
