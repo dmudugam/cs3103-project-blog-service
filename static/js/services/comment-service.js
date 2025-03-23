@@ -65,7 +65,7 @@ const CommentService = {
         
         axios.post(endpoint, 
             JSON.stringify({
-                content: commentData.content
+                content: commentData.content.trim()
             }),
             {
                 headers: {
@@ -77,6 +77,17 @@ const CommentService = {
         )
         .then(response => {
             app.showNotification("success", "Comment added successfully");
+            
+            // Clear the comment form
+            if (app.$refs.blogDetail) {
+                app.$refs.blogDetail.showCommentForm = false;
+                app.$refs.blogDetail.newComment = {
+                    content: "",
+                    parentCommentId: null
+                };
+            }
+            
+            // Also clear the app-level form
             app.showCommentForm = false;
             app.newComment = {
                 content: "",

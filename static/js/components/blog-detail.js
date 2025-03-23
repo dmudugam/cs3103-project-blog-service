@@ -73,23 +73,32 @@ Vue.component('blog-detail', {
             }
         },
         submitComment() {
-            if (!this.newComment.content.trim()) {
+            if (!this.newComment.content || !this.newComment.content.trim()) {
+                // Show a notification
+                this.$root.showNotification("error", "Comment content is required");
                 return;
             }
             
-            this.$emit('submit-comment', {
+            // Call the comment service directly
+            window.CommentService.createComment(this.$root, {
                 content: this.newComment.content,
-                parentCommentId: this.newComment.parentCommentId,
-                blogId: this.blog.blogId
+                parentCommentId: this.newComment.parentCommentId
             });
-            
-            this.newComment.content = '';
-            this.showCommentForm = false;
         },
         replyToComment(commentId) {
-            this.$emit('reply-to-comment', commentId);
+            // Set the parent comment ID
             this.newComment.parentCommentId = commentId;
+            
+            // Show the comment form
             this.showCommentForm = true;
+            
+            // Focus on the textarea
+            setTimeout(() => {
+                const textarea = this.$el.querySelector('textarea');
+                if (textarea) {
+                    textarea.focus();
+                }
+            }, 100);
         },
         deleteComment(commentId) {
             if (confirm("Are you sure you want to delete this comment?")) {

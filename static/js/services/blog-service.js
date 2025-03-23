@@ -140,18 +140,38 @@ const BlogService = {
         )
         .then(response => {
             app.showNotification("success", "Blog created successfully");
+            
+            // Close the modal
             app.showCreateBlogModal = false;
+            
+            // Reset the form
             app.newBlog = {
                 title: "",
                 content: ""
             };
             
-            // Refresh blogs
-            this.getBlogs(app);
-            
-            // Refresh user blogs if modal is open
-            if (app.showUserBlogsModal) {
-                this.getUserBlogs(app);
+            // Check if we have loaded more than the first page
+            if (app.pagination.offset > 0) {
+                // Reset pagination and get all blogs from the beginning
+                app.pagination.offset = 0;
+                
+                // Get first page
+                axios.get(`${app.baseURL}/blogs?limit=${app.pagination.limit}&offset=0`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    withCredentials: true
+                })
+                .then(firstPageResponse => {
+                    // Start with first page of blogs
+                    app.blogs = firstPageResponse.data;
+                    
+                    // If we previously had more pages, fetch them recursively
+                    this.loadRemainingPages(app, app.pagination.limit);
+                });
+            } else {
+                // Just reload the first page if that's all we had
+                this.getBlogs(app);
             }
         })
         .catch(error => {
@@ -164,6 +184,33 @@ const BlogService = {
         })
         .finally(() => {
             app.loading.blog = false;
+        });
+    },
+    
+    loadRemainingPages(app, pageSize, currentOffset = pageSize) {
+        axios.get(`${app.baseURL}/blogs?limit=${pageSize}&offset=${currentOffset}`, {
+            headers: {
+                'Accept': 'application/json'
+            },
+            withCredentials: true
+        })
+        .then(response => {
+            if (response.data && response.data.length > 0) {
+                // Append these blogs to the list
+                app.blogs = [...app.blogs, ...response.data];
+                
+                // Update pagination status
+                app.pagination.hasMore = response.data.length >= pageSize;
+                
+                // If we got a full page, there might be more
+                if (response.data.length >= pageSize) {
+                    // Load the next page
+                    this.loadRemainingPages(app, pageSize, currentOffset + pageSize);
+                }
+            }
+        })
+        .catch(error => {
+            console.log("Error loading additional pages:", error);
         });
     },
     

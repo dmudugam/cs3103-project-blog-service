@@ -269,27 +269,32 @@ const AuthService = {
             app.emailOtpForm.error = null;
         }
         
-        if (!app.authenticated) {
-            app.showNotification("error", "Please login first");
-            return;
+        // Make sure we set the userId in the form
+        if (app.userId) {
+            app.emailOtpForm.userId = app.userId;
         }
         
-        if (!app.hasEmail) {
-            app.showNotification("error", "Please add an email address first");
-            app.openEmailModal();
-            return;
-        }
+        const requestData = {
+            userId: app.userId
+        };
         
         app.loading.verification = true;
-        axios.post(`${app.baseURL}/auth/request-otp`, {}, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            withCredentials: true
-        })
+        
+        axios.post(`${app.baseURL}/auth/request-otp`, 
+            JSON.stringify(requestData), 
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                withCredentials: true
+            }
+        )
         .then(response => {
+            // Make sure we have the userId set for verification
             app.emailOtpForm.userId = app.userId;
+            
+            // Show the OTP modal
             app.showEmailOtpModal = true;
             app.showNotification("success", "Verification OTP sent to your email.");
         })

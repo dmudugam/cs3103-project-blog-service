@@ -69,8 +69,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             emailOtpForm: {
                 otp: "",
-                userId: null,
-                error: null
+                error: null,
+                userId: null
             },
             
             mobileOtpForm: {
