@@ -91,65 +91,82 @@ def send_password_reset_otp(email, username, otp):
 
 def send_blog_notification(blog, author_name, subscribers):
     """Send notification email when a new blog is created"""
-    if not subscribers:
-        return False
-        
-    subject = f"New Blog Post: {blog['title']}"
+    if not subscribers or len(subscribers) == 0:
+        return
     
-    body = f"""
-    Hello,
+    # Get the current application context
+    app_context = current_app._get_current_object()
     
-    A new blog post has been published by {author_name}:
+    def send_notification_thread():
+        # Use application context in the thread
+        with app_context.app_context():
+            try:
+                for subscriber_email in subscribers:
+                    subject = f"New Blog Post: {blog['title']}"
+                    body = f"""
+                    Hi there,
+                    
+                    {author_name} just published a new blog post:
+                    
+                    {blog['title']}
+                    
+                    {blog['content'][:200]}... (continue reading on the website)
+                    
+                    Visit our blog service to read the full post.
+                    
+                    To manage your notification preferences, visit your profile page.
+                    
+                    Best regards,
+                    The Blog Service Team
+                    """
+                    
+                    send_email(subscriber_email, subject, body)
+                
+                return True
+            except Exception as e:
+                print(f"Failed to send blog notification: {e}", file=sys.stderr)
+                return False
     
-    Title: {blog['title']}
-    
-    Visit our blog service to read the full post.
-    
-    Best regards,
-    The Blog Service Team
-    """
-    
-    # For multiple recipients, we need a different approach
-    msg = MIMEMultipart()
-    msg['From'] = current_app.config['EMAIL_FROM']
-    msg['Subject'] = subject
-    
-    # Use BCC for privacy
-    msg['Bcc'] = ", ".join(subscribers)
-    
-    msg.attach(MIMEText(body, 'plain'))
-    
-    # Send the email in a separate thread
-    def send_email_thread():
-        try:
-            server = smtplib.SMTP(current_app.config['SMTP_SERVER'], current_app.config['SMTP_PORT'])
-            server.starttls()
-            server.login(current_app.config['SMTP_USERNAME'], current_app.config['SMTP_PASSWORD'])
-            server.send_message(msg)
-            server.quit()
-            print(f"Blog notification sent to {len(subscribers)} subscribers")
-            return True
-        except Exception as e:
-            print(f"Failed to send blog notification: {e}", file=sys.stderr)
-            return False
-    
-    thread = threading.Thread(target=send_email_thread)
+    # Start the sending in a new thread to not block the response
+    thread = threading.Thread(target=send_notification_thread)
     thread.start()
     return True
 
 def send_comment_notification(comment, blog_title, comment_author, blog_author_email):
     """Send notification email when a comment is added to a blog post"""
-    subject = f"New Comment on Your Blog: {blog_title}"
+    if not blog_author_email:
+        return
     
-    body = f"""
-    Hello,
+    # Get the current application context
+    app_context = current_app._get_current_object()
     
-    {comment_author} has commented on your blog post "{blog_title}".
+    def send_notification_thread():
+        # Use application context in the thread
+        with app_context.app_context():
+            try:
+                subject = f"New Comment on Your Blog: {blog_title}"
+                body = f"""
+                Hi there,
+                
+                {comment_author} just commented on your blog post "{blog_title}":
+                
+                "{comment['content'][:200]}" 
+                
+                Visit our blog service to view the comment and respond.
+                
+                To manage your notification preferences, visit your profile page.
+                
+                Best regards,
+                The Blog Service Team
+                """
+                
+                send_email(blog_author_email, subject, body)
+                return True
+            except Exception as e:
+                print(f"Failed to send comment notification: {e}", file=sys.stderr)
+                return False
     
-    Visit our blog service to view the comment and respond.
-    
-    Best regards,
-    The Blog Service Team
-    """
-    
-    return send_email(blog_author_email, subject, body)
+    # Start the sending in a new thread to not block the response
+    thread = threading.Thread(target=send_notification_thread)
+    thread.start()
+    return True

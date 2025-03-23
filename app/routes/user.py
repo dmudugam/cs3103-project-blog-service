@@ -1,5 +1,6 @@
 from flask import request, session, make_response, jsonify
 from flask_restful import Resource, reqparse
+import re
 
 from app.services.db_service import sql_call_fetch_one, sql_call_fetch_all
 from app.utils.helpers import sanitize_string
@@ -33,22 +34,33 @@ class UserDetail(Resource):
 class UserEmail(Resource):
     @login_required
     def put(self):
-        if not request.json:
-            return make_response(jsonify({'status': 'error', 'message': 'No JSON data provided'}), 400)
+        if not request.is_json:
+            return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
         
         # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('email', type=str, required=True, help='Email is required')
         args = parser.parse_args()
         
-        # Sanitize email
+        # Sanitize inputs
         email = sanitize_string(args['email'])
         
         if not email:
             return make_response(jsonify({'status': 'error', 'message': 'Email is required after sanitization'}), 400)
         
-        # Get user from session
+        # Validate email format
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return make_response(jsonify({'status': 'error', 'message': 'Invalid email format'}), 400)
+        
+        # Get the current user
         username = session['username']
+        
+        # Check if email already exists for a different user
+        existing_email_user = sql_call_fetch_one('getUserByEmail', (email,))
+        if existing_email_user and existing_email_user['username'] != username:
+            return make_response(jsonify({'status': 'error', 'message': 'Email address is already in use by another account'}), 400)
+        
+        # Get user from session
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
         if not user:

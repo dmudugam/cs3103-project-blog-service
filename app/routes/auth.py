@@ -298,14 +298,34 @@ class VerifyOTP(Resource):
 
 # Request email OTP
 class RequestOTP(Resource):
-    @login_required
     def post(self):
-        # Get user from session
-        username = session['username']
-        user = sql_call_fetch_one('getUserByUsername', (username,))
+        # Check if request has JSON
+        user_id = None
+        if request.is_json:
+            parser = reqparse.RequestParser()
+            parser.add_argument('userId', type=int)
+            args = parser.parse_args()
+            user_id = args.get('userId')
         
-        if not user:
-            return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
+        # If no userId provided, try to get from session username
+        if user_id is None:
+            if 'username' not in session:
+                return make_response(jsonify({'status': 'error', 'message': 'User not logged in'}), 401)
+            
+            # Get user by username from session
+            username = session['username']
+            user = sql_call_fetch_one('getUserByUsername', (username,))
+            
+            if not user:
+                return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
+                
+            user_id = user['userId']
+        else:
+            # Get user info for the provided user ID
+            user = sql_call_fetch_one('getUserById', (user_id,))
+            
+            if not user:
+                return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
         # Check if user has an email
         if not user.get('email'):
