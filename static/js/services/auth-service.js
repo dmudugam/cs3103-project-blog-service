@@ -3,7 +3,7 @@ const AuthService = {
     checkAuth(app) {
         app.loading.auth = true;
         
-        axios.get(`${app.baseURL}/auth/login`, {
+        return axios.get(`${app.baseURL}/auth/login`, {
             headers: { 'Accept': 'application/json' },
             withCredentials: true
         })
@@ -14,7 +14,7 @@ const AuthService = {
                 app.username = response.data.username;
                 app.verified = response.data.verified;
                 app.mobileVerified = response.data.mobileVerified;
-                app.userType = response.data.userType || 'ldap';
+                app.userType = response.data.userType || 'local';
                 
                 // Handle email data
                 app.userEmail = response.data.email;
@@ -42,10 +42,12 @@ const AuthService = {
             } else {
                 this.resetUserState(app);
             }
+            return response;
         })
         .catch(error => {
             console.log("Auth check error:", error);
             this.resetUserState(app);
+            return Promise.reject(error);
         })
         .finally(() => {
             app.loading.auth = false;

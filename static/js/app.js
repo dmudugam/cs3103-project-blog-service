@@ -150,7 +150,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 verified: false,
                 error: null,
                 success: null
-            }
+            },
+            appReady: false // Add this flag
         },
         
         computed: {
@@ -169,9 +170,15 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         
         created() {
-            // Check if user is logged in
-            this.checkAuth();
-            // Get initial blogs
+            // First check auth, then set appReady to true, and handle any errors
+            this.checkAuth()
+                .then(() => {
+                    this.appReady = true;
+                })
+                .catch(() => {
+                    // Still set appReady to true even on auth failure
+                    this.appReady = true;
+                });
             this.getBlogs();
             
             // Check for password reset token in URL
@@ -188,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function() {
         methods: {
             // Authentication Methods
             checkAuth() {
-                window.AuthService.checkAuth(this);
+                return window.AuthService.checkAuth(this);
             },
             
             login() {
