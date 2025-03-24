@@ -632,6 +632,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     showMobileOtpModal: this.showMobileOtpModal,
                     showResetPasswordModal: this.showResetPasswordModal
                 });
+            },
+
+            handleMobileVerificationClose() {
+                this.showMobileOtpModal = false;
+                this.mobileOtpForm.otp = "";
+                this.mobileOtpForm.error = null;
+                
+                // Reload app state
+                this.checkAuth()
+                    .then(() => {
+                        console.log("App state refreshed after mobile verification closed");
+                    })
+                    .catch(error => {
+                        console.error("Error refreshing app state:", error);
+                    });
+            },
+
+            handleEmailVerificationClose() {
+                this.showEmailOtpModal = false;
+                this.emailOtpForm.otp = "";
+                this.emailOtpForm.error = null;
+                
+                // Reload app state
+                this.checkAuth()
+                    .then(() => {
+                        console.log("App state refreshed after email verification closed");
+                    })
+                    .catch(error => {
+                        console.error("Error refreshing app state:", error);
+                    });
             }
         }
     });

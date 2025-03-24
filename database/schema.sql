@@ -503,6 +503,16 @@ BEGIN
 END //
 DELIMITER ;
 
+DROP PROCEDURE IF EXISTS getPendingEmail;
+DELIMITER //
+CREATE PROCEDURE getPendingEmail(
+    userIdIn INT
+)
+BEGIN
+    SELECT newEmail FROM pending_email_changes WHERE userId = userIdIn;
+END //
+DELIMITER ;
+
 -- ===================================================================
 -- MOBILE VERIFICATION PROCEDURES
 -- ===================================================================
@@ -579,6 +589,16 @@ BEGIN
     ELSE
         SELECT FALSE as success, NULL as userId;
     END IF;
+END //
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS getPendingPhone;
+DELIMITER //
+CREATE PROCEDURE getPendingPhone(
+    userIdIn INT
+)
+BEGIN
+    SELECT newPhone as phone FROM pending_phone_changes WHERE userId = userIdIn;
 END //
 DELIMITER ;
 

@@ -283,7 +283,7 @@
             </modal>
             
             <!-- Email OTP Verification -->
-            <modal v-if="showEmailOtpModal" @close="showEmailOtpModal = false" animation-type="zoom">
+            <modal v-if="showEmailOtpModal" @close="handleEmailVerificationClose" animation-type="zoom">
                 <template v-slot:header>
                     <h3>Email Verification</h3>
                 </template>
@@ -317,7 +317,7 @@
             </modal>
             
             <!-- Phone OTP Verification -->
-            <modal v-if="showMobileOtpModal" @close="showMobileOtpModal = false" animation-type="zoom">
+            <modal v-if="showMobileOtpModal" @close="handleMobileVerificationClose" animation-type="zoom">
                 <template v-slot:header>
                     <h3>Mobile Verification</h3>
                 </template>

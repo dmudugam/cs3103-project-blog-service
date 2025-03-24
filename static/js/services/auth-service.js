@@ -274,8 +274,13 @@ const AuthService = {
             app.emailOtpForm.userId = app.userId;
         }
         
+        // Check if this is part of an email update process
+        const isEmailUpdate = app.showEmailOtpModal && app.hasEmail;
+        
         const requestData = {
-            userId: app.userId
+            userId: app.userId,
+            // Add this flag when in the OTP modal during update
+            updatingEmail: isEmailUpdate
         };
         
         app.loading.verification = true;
@@ -397,14 +402,22 @@ const AuthService = {
             return;
         }
         
+        // Check if this is part of a phone update process
+        const isPhoneUpdate = app.showMobileOtpModal && app.hasPhone;
+        
         app.loading.verification = true;
-        axios.post(`${app.baseURL}/auth/request-mobile-otp`, {}, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            withCredentials: true
-        })
+        axios.post(`${app.baseURL}/auth/request-mobile-otp`, 
+            JSON.stringify({
+                updatingPhone: isPhoneUpdate
+            }), 
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                withCredentials: true
+            }
+        )
         .then(response => {
             app.mobileOtpForm.userId = app.userId;
             app.showMobileOtpModal = true;

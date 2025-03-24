@@ -299,44 +299,47 @@ class VerifyOTP(Resource):
 # Request email OTP
 class RequestOTP(Resource):
     def post(self):
-        # Check if request has JSON
-        user_id = None
-        if request.is_json:
-            parser = reqparse.RequestParser()
-            parser.add_argument('userId', type=int)
-            args = parser.parse_args()
-            user_id = args.get('userId')
+        # Parse request
+        parser = reqparse.RequestParser()
+        parser.add_argument('userId', type=int, required=True, help='User ID is required')
+        # Add new parameter to indicate an email update is in progress
+        parser.add_argument('updatingEmail', type=bool, required=False, default=False)
+        args = parser.parse_args()
         
-        # If no userId provided, try to get from session username
-        if user_id is None:
-            if 'username' not in session:
-                return make_response(jsonify({'status': 'error', 'message': 'User not logged in'}), 401)
-            
-            # Get user by username from session
-            username = session['username']
-            user = sql_call_fetch_one('getUserByUsername', (username,))
-            
-            if not user:
-                return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
-                
-            user_id = user['userId']
-        else:
-            # Get user info for the provided user ID
-            user = sql_call_fetch_one('getUserById', (user_id,))
-            
-            if not user:
-                return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
+        # Get user by ID
+        user = sql_call_fetch_one('getUserById', (args['userId'],))
+        
+        if not user:
+            return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
         # Check if user has an email
         if not user.get('email'):
             return make_response(jsonify({'status': 'error', 'message': 'Please add an email address first'}), 400)
         
-        # Check if user is already verified
-        verified_result = sql_call_fetch_one('isUserVerified', (user['userId'],))
-        is_verified = verified_result and verified_result.get('verified', 0) > 0
+        # Only check verification status if we're not updating email
+        if not args['updatingEmail']:
+            # Check if user is already verified
+            verified_result = sql_call_fetch_one('isUserVerified', (user['userId'],))
+            is_verified = verified_result and verified_result.get('verified', 0) > 0
+            
+            if is_verified:
+                return make_response(jsonify({'status': 'error', 'message': 'Email is already verified'}), 400)
         
-        if is_verified:
-            return make_response(jsonify({'status': 'error', 'message': 'Email is already verified'}), 400)
+        # Check if there's a pending email update for this user
+        pending_email = None
+        try:
+            pending_result = sql_call_fetch_one('getPendingEmail', (args['userId'],))
+            if pending_result and 'newEmail' in pending_result:
+                pending_email = pending_result['newEmail']
+                print(f"Found pending email: {pending_email}")
+            else:
+                print(f"No pending email found or unexpected structure: {pending_result}")
+        except Exception as e:
+            print(f"Error checking pending email: {e}")
+        
+        # Use pending email if available, otherwise use current email
+        email_to_use = pending_email if pending_email else user.get('email')
+        print(f"Using email for OTP: {email_to_use}")
         
         # Generate new OTP
         otp = generate_otp()
@@ -344,8 +347,8 @@ class RequestOTP(Resource):
         # Update verification record
         sql_call_fetch_one('createVerification', (user['userId'], otp))
         
-        # Send verification email
-        send_verification_email(user['email'], user['username'], otp)
+        # Send verification email to the appropriate email address
+        send_verification_email(email_to_use, user['username'], otp)
         
         return make_response(jsonify({'status': 'success', 'message': 'Verification OTP sent to email'}), 200)
 
@@ -376,6 +379,11 @@ class VerifyMobileOTP(Resource):
 class RequestMobileOTP(Resource):
     @login_required
     def post(self):
+        # Parse request
+        parser = reqparse.RequestParser()
+        parser.add_argument('updatingPhone', type=bool, required=False, default=False)
+        args = parser.parse_args()
+        
         # Get user from session
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
@@ -387,16 +395,30 @@ class RequestMobileOTP(Resource):
         if not safe_get(user, 'phone_number'):
             return make_response(jsonify({'status': 'error', 'message': 'Please add a phone number first'}), 400)
         
-        # Check if mobile verification tables exist
+        # Only check verification status if we're not updating phone
+        if not args['updatingPhone']:
+            try:
+                # Check if user is already verified
+                mobile_verified_result = sql_call_fetch_one('isMobileVerified', (user['userId'],))
+                is_mobile_verified = mobile_verified_result and mobile_verified_result.get('verified', 0) > 0
+                
+                if is_mobile_verified:
+                    return make_response(jsonify({'status': 'error', 'message': 'Phone is already verified'}), 400)
+            except Exception as e:
+                # Continue with the rest of the function...
+                pass
+        
+        # Check if there's a pending phone update for this user
+        pending_phone = None
         try:
-            # Check if user is already verified
-            mobile_verified_result = sql_call_fetch_one('isMobileVerified', (user['userId'],))
-            is_mobile_verified = mobile_verified_result and mobile_verified_result.get('verified', 0) > 0
-            
-            if is_mobile_verified:
-                return make_response(jsonify({'status': 'error', 'message': 'Phone is already verified'}), 400)
+            pending_result = sql_call_fetch_one('getPendingPhone', (user['userId'],))
+            if pending_result and 'phone' in pending_result:
+                pending_phone = pending_result['phone']
         except Exception as e:
-            return make_response(jsonify({'status': 'error', 'message': 'Mobile verification not available. Database needs to be updated.'}), 400)
+            print(f"Error checking pending phone: {e}")
+        
+        # Use pending phone if available, otherwise use current phone
+        phone_to_use = pending_phone if pending_phone else user.get('phone_number')
         
         # Make sure SMS is enabled
         if not is_sms_enabled():
@@ -411,8 +433,8 @@ class RequestMobileOTP(Resource):
         except Exception as e:
             return make_response(jsonify({'status': 'error', 'message': 'Mobile verification not available. Database needs to be updated.'}), 400)
         
-        # Send verification SMS
-        sms_sent = send_verification_sms(user['phone_number'], user['username'], otp)
+        # Send verification SMS to the appropriate phone number
+        sms_sent = send_verification_sms(phone_to_use, user['username'], otp)
         
         if sms_sent:
             return make_response(jsonify({'status': 'success', 'message': 'Verification OTP sent to phone'}), 200)

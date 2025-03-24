@@ -30,10 +30,10 @@ const UserService = {
         .then(response => {
             app.showEmailModal = false;
             
-            // Update user email data
-            app.userEmail = response.data.email;
-            app.hasEmail = Boolean(response.data.email);
-            app.verified = false;
+            // Not update main user email yet - just store pending email
+            // app.userEmail = response.data.email;
+            // app.hasEmail = true;
+            // app.verified = false;
             
             // Store user ID for OTP verification
             app.emailOtpForm.userId = response.data.userId;
@@ -114,6 +114,14 @@ const UserService = {
             } else {
                 // If SMS couldn't be sent
                 app.showNotification("warning", "Phone number updated, but SMS delivery is currently unavailable. Please try mobile verification later.");
+                app.checkAuth()
+                .then(() => {
+                    console.log("App state refreshed after phone update without SMS");
+                })
+                .catch(error => {
+                    console.error("Error refreshing app state:", error);
+                });
+                
             }
         })
         .catch(error => {
