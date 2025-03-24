@@ -66,6 +66,59 @@ class UserEmail(Resource):
         if not user:
             return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
+        # Store pending email change but don't update main email yet
+        updated_user = sql_call_fetch_one('updateUserEmail', (user['userId'], email))
+        
+        if not updated_user:
+            return make_response(jsonify({'status': 'error', 'message': 'Failed to update email'}), 500)
+        
+        # Generate OTP for verification
+        from app.utils.helpers import generate_otp
+        otp = generate_otp()
+        
+        # Store OTP in verification table
+        sql_call_fetch_one('createVerification', (updated_user['userId'], otp))
+        
+        # Send verification email with OTP to the NEW email
+        from app.services.email_service import send_verification_email
+        send_verification_email(email, updated_user['username'], otp)
+        
+        return make_response(jsonify(updated_user), 200)
+
+    @login_required
+    def put(self):
+        if not request.is_json:
+            return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
+        
+        # Parse request
+        parser = reqparse.RequestParser()
+        parser.add_argument('email', type=str, required=True, help='Email is required')
+        args = parser.parse_args()
+        
+        # Sanitize inputs
+        email = sanitize_string(args['email'])
+        
+        if not email:
+            return make_response(jsonify({'status': 'error', 'message': 'Email is required after sanitization'}), 400)
+        
+        # Validate email format
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return make_response(jsonify({'status': 'error', 'message': 'Invalid email format'}), 400)
+        
+        # Get the current user
+        username = session['username']
+        
+        # Check if email already exists for a different user
+        existing_email_user = sql_call_fetch_one('getUserByEmail', (email,))
+        if existing_email_user and existing_email_user['username'] != username:
+            return make_response(jsonify({'status': 'error', 'message': 'Email address is already in use by another account'}), 400)
+        
+        # Get user from session
+        user = sql_call_fetch_one('getUserByUsername', (username,))
+        
+        if not user:
+            return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
+        
         # Update users email
         updated_user = sql_call_fetch_one('updateUserEmail', (user['userId'], email))
         
@@ -86,6 +139,63 @@ class UserEmail(Resource):
         return make_response(jsonify(updated_user), 200)
 
 class UserPhone(Resource):
+    @login_required
+    def put(self):
+        if not request.json:
+            return make_response(jsonify({'status': 'error', 'message': 'No JSON data provided'}), 400)
+        
+        # Parse request
+        parser = reqparse.RequestParser()
+        parser.add_argument('phone', type=str, required=True, help='Phone number is required')
+        args = parser.parse_args()
+        
+        # Sanitize phone
+        phone = sanitize_string(args['phone'])
+        
+        if not phone:
+            return make_response(jsonify({'status': 'error', 'message': 'Phone number is required after sanitization'}), 400)
+        
+        # Validate phone number format
+        if not phone.startswith('+') or not phone[1:].isdigit():
+            return make_response(jsonify({'status': 'error', 'message': 'Phone number must be in E.164 format (e.g., +1234567890)'}), 400)
+        
+        # Get user from session
+        username = session['username']
+        user = sql_call_fetch_one('getUserByUsername', (username,))
+        
+        if not user:
+            return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
+        
+        # Check if user has phone_number, temporarily disable SMS functionality if not
+        if 'phone_number' not in user:
+            return make_response(jsonify({
+                'status': 'error',
+                'message': 'Phone number functionality is not available. The database needs to be updated.'
+            }), 400)
+        
+        # Store pending phone change but don't update main phone yet
+        updated_user = sql_call_fetch_one('updateUserPhone', (user['userId'], phone))
+        
+        if not updated_user:
+            return make_response(jsonify({'status': 'error', 'message': 'Failed to update phone number'}), 500)
+        
+        # Generate OTP for verification
+        from app.utils.helpers import generate_otp
+        otp = generate_otp()
+        
+        # Store OTP in verification table
+        sql_call_fetch_one('createMobileVerification', (updated_user['userId'], otp))
+        
+        # Check if SMS is enabled and try to send it
+        from app.services.sms_service import send_verification_sms, is_sms_enabled
+        sms_sent = False
+        if is_sms_enabled():
+            sms_sent = send_verification_sms(phone, updated_user['username'], otp)
+        
+        # Include SMS status in response
+        response_data = {**updated_user, 'sms_sent': sms_sent}
+        
+        return make_response(jsonify(response_data), 200)
     @login_required
     def put(self):
         if not request.json:
