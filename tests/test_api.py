@@ -664,35 +664,69 @@ def test_update_notification_preferences():
 
 def test_request_email_otp():
     print_test("Request email verification OTP")
+    
+    # Get user ID from session first
+    auth_data = test_check_auth()
+    if not auth_data or 'userId' not in auth_data:
+        print(f"{RED}Failed to get user ID{RESET}")
+        return None
+    
+    user_id = auth_data['userId']
+    
+    # Add updatingEmail flag to force OTP generation
     command = f"""
     curl -X POST {BASE_URL}/auth/request-otp \\
       -H "Content-Type: application/json" \\
       -b {COOKIE_JAR} \\
-      -d '{{}}' \\
+      -d '{{"userId": {user_id}, "updatingEmail": true}}' \\
       -k
     """
     response = run_curl(command)
     
-    # Some versions of the API may return success, others may say already verified
+    # Handle different response formats
     if response and isinstance(response, dict):
         if 'status' in response and response['status'] == 'success':
             print(f"{GREEN}OTP request successful{RESET}")
-        elif 'message' in response and 'already verified' in response['message'].lower():
-            print(f"{GREEN}Account is already verified (expected){RESET}")
+        elif 'message' in response:
+            # Handle both string and dict message formats
+            if isinstance(response['message'], str):
+                if 'already verified' in response['message'].lower():
+                    print(f"{GREEN}Account is already verified (expected){RESET}")
+                else:
+                    print(f"{YELLOW}Message: {response['message']}{RESET}")
+            else:
+                print(f"{YELLOW}Validation errors: {response['message']}{RESET}")
     return response
 
 def test_request_mobile_otp():
     print_test("Request mobile verification OTP")
+    
+    # Get user ID from session first
+    auth_data = test_check_auth()
+    if not auth_data or 'userId' not in auth_data:
+        print(f"{RED}Failed to get user ID{RESET}")
+        return None
+    
+    # Add updatingPhone flag to force OTP generation
     command = f"""
     curl -X POST {BASE_URL}/auth/request-mobile-otp \\
       -H "Content-Type: application/json" \\
       -b {COOKIE_JAR} \\
-      -d '{{}}' \\
+      -d '{{"updatingPhone": true}}' \\
       -k
     """
     response = run_curl(command)
-    # SMS might be disabled or the account might be already verified
-    # So we don't expect a specific response
+    
+    # Handle different response formats
+    if response and isinstance(response, dict):
+        if 'status' in response and response['status'] == 'success':
+            print(f"{GREEN}Mobile OTP request successful{RESET}")
+        elif 'message' in response:
+            if isinstance(response['message'], str):
+                print(f"{YELLOW}Message: {response['message']}{RESET}")
+            else:
+                print(f"{YELLOW}Validation errors: {response['message']}{RESET}")
+    
     return response
 
 ##########################################
