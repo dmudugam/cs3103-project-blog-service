@@ -8,29 +8,29 @@ from app.utils.decorators import login_required, verification_required, ownershi
 
 class BlogCommentList(Resource):
     def get(self, blogId):
-        # Parse query parameters
-        parser = reqparse.RequestParser()
-        parser.add_argument('newerThan', type=str, required=False, help='Filter comments created after this date (YYYY-MM-DD)')
-        parser.add_argument('limit', type=int, required=False, default=20, help='Maximum number of comments to return')
-        parser.add_argument('offset', type=int, required=False, default=0, help='Number of comments to skip for pagination')
-        args = parser.parse_args()
+        # Use request.args directly instead of reqparse
+        newer_than = request.args.get('newerThan')
+        limit = request.args.get('limit', default=20, type=int)
+        offset = request.args.get('offset', default=0, type=int)
         
         # Convert date string to date object if provided
-        newer_than = None
-        if args['newerThan']:
+        if newer_than:
             try:
                 from datetime import datetime
-                newer_than = datetime.strptime(args['newerThan'], '%Y-%m-%d').date()
+                newer_than = datetime.strptime(newer_than, '%Y-%m-%d').date()
             except ValueError:
                 return make_response(jsonify({'status': 'error', 'message': 'Invalid date format. Use YYYY-MM-DD'}), 400)
         
-        # Get comments from database
-        comments = sql_call_fetch_all('getCommentsByBlog', (blogId, newer_than, args['limit'], args['offset']))
+        # Check if blog exists
+        blog = sql_call_fetch_one('getBlogById', (blogId,))
+        if not blog:
+            return make_response(jsonify({'status': 'error', 'message': 'Blog not found'}), 404)
         
-        response = make_response(jsonify(comments), 200)
-        response.headers['Content-Type'] = 'application/json'
-        return response
-
+        # Get comments from database
+        comments = sql_call_fetch_all('getCommentsByBlog', (blogId, newer_than, limit, offset))
+        
+        return make_response(jsonify(comments), 200)
+    
 class BlogCommentCreate(Resource):
     @login_required
     @verification_required

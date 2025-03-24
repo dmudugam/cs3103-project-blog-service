@@ -54,8 +54,8 @@ def create_app():
     def after_request(response):
         """Ensure all responses have appropriate headers"""
         # Set content type for JSON responses
-        if request.path.startswith('/blogs') or request.path.startswith('/users') or request.path.startswith('/comments'):
-            response.headers.setdefault('Content-Type', 'application/json')
+        if not response.headers.get('Content-Type'):
+            response.headers['Content-Type'] = 'application/json'
         
         # CORS headers
         response.headers.setdefault('Access-Control-Allow-Origin', f"https://{app.config['APP_HOST']}")
@@ -64,10 +64,7 @@ def create_app():
         response.headers.setdefault('Access-Control-Allow-Credentials', 'true')
         
         return response
-    
-    # Add direct route handlers
-    from app.routes.direct_routes import register_direct_routes
-    register_direct_routes(app)
+
 
     @app.route('/')
     def serve_index():

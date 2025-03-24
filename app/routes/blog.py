@@ -1,5 +1,6 @@
 from flask import request, session, make_response, jsonify
-from flask_restful import Resource, reqparse
+from flask_restful import Resource
+from datetime import datetime
 
 from app.services.db_service import sql_call_fetch_one, sql_call_fetch_all
 from app.services.email_service import send_blog_notification
@@ -8,33 +9,24 @@ from app.utils.decorators import login_required, verification_required, ownershi
 
 class BlogList(Resource):
     def get(self):
-        # Parse query parameters
-        parser = reqparse.RequestParser()
-        parser.add_argument('newerThan', type=str, required=False, help='Filter blogs created after this date (YYYY-MM-DD)')
-        parser.add_argument('author', type=str, required=False, help='Filter blogs by author name')
-        parser.add_argument('limit', type=int, required=False, default=20, help='Maximum number of blogs to return')
-        parser.add_argument('offset', type=int, required=False, default=0, help='Number of blogs to skip for pagination')
-        args = parser.parse_args()
+        newer_than = request.args.get('newerThan')
+        author = request.args.get('author')
+        limit = request.args.get('limit', default=20, type=int)
+        offset = request.args.get('offset', default=0, type=int)
         
         # Convert date string to date object if provided
-        newer_than = None
-        if args['newerThan']:
+        if newer_than:
             try:
-                from datetime import datetime
-                newer_than = datetime.strptime(args['newerThan'], '%Y-%m-%d').date()
+                newer_than = datetime.strptime(newer_than, '%Y-%m-%d').date()
             except ValueError:
                 return make_response(jsonify({'status': 'error', 'message': 'Invalid date format. Use YYYY-MM-DD'}), 400)
         
         # Sanitize author input
-        author = sanitize_string(args['author']) if args['author'] else None
+        author = sanitize_string(author) if author else None
         
-        # Get blogs from database
-        blogs = sql_call_fetch_all('getBlogs', (newer_than, author, args['limit'], args['offset']))
+        blogs = sql_call_fetch_all('getBlogs', (newer_than, author, limit, offset))
         
-        # Set response headers
-        response = make_response(jsonify(blogs), 200)
-        response.headers['Content-Type'] = 'application/json'
-        return response
+        return make_response(jsonify(blogs), 200)
 
 class BlogDetail(Resource):
     def get(self, blogId):
@@ -48,40 +40,25 @@ class BlogCreate(Resource):
     @login_required
     @verification_required
     def post(self):
-        if not request.json:
-            return make_response(jsonify({'status': 'error', 'message': 'No JSON data provided'}), 400)
-        
-        # Parse request
-        parser = reqparse.RequestParser()
-        parser.add_argument('title', type=str, required=True, help='Title is required')
-        parser.add_argument('content', type=str, required=True, help='Content is required')
-        args = parser.parse_args()
+        data = request.get_json()
+        if not data or 'title' not in data or 'content' not in data:
+            return make_response(jsonify({'status': 'error', 'message': 'Title and content are required'}), 400)
         
         # Sanitize inputs
-        title = sanitize_string(args['title'])
-        content = sanitize_html(args['content'])
+        title = sanitize_string(data['title'])
+        content = sanitize_html(data['content'])
         
         if not title or not content:
             return make_response(jsonify({'status': 'error', 'message': 'Title and content are required after sanitization'}), 400)
         
-        # Get user ID from session
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
-        # Create blog
         blog = sql_call_fetch_one('createBlog', (title, content, user['userId']))
         
-        subscribers = []
-        users = sql_call_fetch_all('getUsers', (1000, 0))
+        subscribers = [u['email'] for u in sql_call_fetch_all('getUsers', (1000, 0))
+                       if u['userId'] != user['userId'] and u['email'] and sql_call_fetch_one('getUserNotificationPreferences', (u['userId'],)).get('notifyOnBlog')]
         
-        for potential_subscriber in users:
-            if potential_subscriber['userId'] != user['userId'] and potential_subscriber['email']:
-                # Check if user wants blog notifications
-                prefs = sql_call_fetch_one('getUserNotificationPreferences', (potential_subscriber['userId'],))
-                if prefs and prefs['notifyOnBlog']:
-                    subscribers.append(potential_subscriber['email'])
-        
-        # Send notification email
         if subscribers:
             send_blog_notification(blog, user['username'], subscribers)
         
@@ -92,27 +69,16 @@ class BlogUpdate(Resource):
     @verification_required
     @ownership_required('blog')
     def put(self, blogId):
-        if not request.json:
-            return make_response(jsonify({'status': 'error', 'message': 'No JSON data provided'}), 400)
+        data = request.get_json()
+        if not data or 'title' not in data or 'content' not in data:
+            return make_response(jsonify({'status': 'error', 'message': 'Title and content are required'}), 400)
         
-        # Parse request
-        parser = reqparse.RequestParser()
-        parser.add_argument('title', type=str, required=True, help='Title is required')
-        parser.add_argument('content', type=str, required=True, help='Content is required')
-        args = parser.parse_args()
+        title = sanitize_string(data['title'])
+        content = sanitize_html(data['content'])
         
-        # Sanitize inputs
-        title = sanitize_string(args['title'])
-        content = sanitize_html(args['content'])
-        
-        if not title or not content:
-            return make_response(jsonify({'status': 'error', 'message': 'Title and content are required after sanitization'}), 400)
-        
-        # Get user ID from session
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
-        # Update blog
         blog = sql_call_fetch_one('updateBlog', (blogId, title, content, user['userId']))
         
         if not blog:
@@ -125,11 +91,9 @@ class BlogDelete(Resource):
     @verification_required
     @ownership_required('blog')
     def delete(self, blogId):
-        # Get user ID from session
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
-        # Delete blog
         result = sql_call_fetch_one('deleteBlog', (blogId, user['userId']))
         
         if not result or result['affectedRows'] == 0:

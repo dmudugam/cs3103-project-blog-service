@@ -2,7 +2,7 @@ const CommentService = {
     getComments(app, blogId) {
         app.loading.comments = true;
         // For GET requests, only set Accept header, not Content-Type
-        axios.get(`${app.baseURL}/blogs/${blogId}/comments`, {
+        axios.get(`${app.baseURL}/blogs-api/${blogId}/comments`, {
             headers: {
                 'Accept': 'application/json'
             },

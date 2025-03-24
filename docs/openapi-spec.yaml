@@ -531,7 +531,7 @@ paths:
                 $ref: '#/components/schemas/Error'
   
   # Blog endpoints
-  /blogs:
+  /blogs-api:
     get:
       tags: [Blogs]
       security: []
@@ -575,7 +575,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/Blog'
   
-  /blogs/{blogId}:
+  /blogs-api/{blogId}:
     get:
       tags: [Blogs]
       security: []
@@ -744,7 +744,7 @@ paths:
                 $ref: '#/components/schemas/Error'
   
   # Comment endpoints
-  /blogs/{blogId}/comments:
+  /blogs-api/{blogId}/comments:
     get:
       tags: [Comments]
       security: []
@@ -1109,7 +1109,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
   
-  /users/{userId}/blogs:
+  /users-api/{userId}/blogs:
     get:
       tags: [Users]
       security: []

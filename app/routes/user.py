@@ -143,7 +143,7 @@ class UserPhone(Resource):
         response_data = {**updated_user, 'sms_sent': sms_sent}
         
         return make_response(jsonify(response_data), 200)
-
+    
 class UserBlogList(Resource):
     def get(self, userId):
         # Check if user exists
@@ -151,29 +151,26 @@ class UserBlogList(Resource):
         if not user:
             return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
-        # Parse query parameters
-        parser = reqparse.RequestParser()
-        parser.add_argument('newerThan', type=str, required=False, help='Filter blogs created after this date (YYYY-MM-DD)')
-        parser.add_argument('limit', type=int, required=False, default=20, help='Maximum number of blogs to return')
-        parser.add_argument('offset', type=int, required=False, default=0, help='Number of blogs to skip for pagination')
-        args = parser.parse_args()
+        # Use direct request.args instead of reqparse
+        newer_than = request.args.get('newerThan')
+        limit = request.args.get('limit', default=20, type=int)
+        offset = request.args.get('offset', default=0, type=int)
         
         # Convert date string to date object if provided
-        newer_than = None
-        if args['newerThan']:
+        if newer_than:
             try:
                 from datetime import datetime
-                newer_than = datetime.strptime(args['newerThan'], '%Y-%m-%d').date()
+                newer_than = datetime.strptime(newer_than, '%Y-%m-%d').date()
             except ValueError:
                 return make_response(jsonify({'status': 'error', 'message': 'Invalid date format. Use YYYY-MM-DD'}), 400)
         
         # Get blogs from database
-        blogs = sql_call_fetch_all('getBlogsByUserId', (userId, newer_than, args['limit'], args['offset']))
+        blogs = sql_call_fetch_all('getBlogsByUserId', (userId, newer_than, limit, offset))
         
         response = make_response(jsonify(blogs), 200)
         response.headers['Content-Type'] = 'application/json'
         return response
-
+    
 class UserNotificationPreferences(Resource):
     @login_required
     def get(self):

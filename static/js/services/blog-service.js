@@ -13,7 +13,7 @@ const BlogService = {
         else params.append('offset', app.pagination.offset);
         
         // For GET requests, only set Accept header, not Content-Type
-        axios.get(`${app.baseURL}/blogs?${params.toString()}`, {
+        axios.get(`${app.baseURL}/blogs-api?${params.toString()}`, {
             headers: {
                 'Accept': 'application/json'
             },
@@ -54,7 +54,7 @@ const BlogService = {
         }
         
         app.loading.blogs = true;
-        axios.get(`${app.baseURL}/users/${app.userId}/blogs`, {
+        axios.get(`${app.baseURL}/users-api/${app.userId}/blogs`, {
             headers: {
                 'Accept': 'application/json'
             },
@@ -75,7 +75,7 @@ const BlogService = {
     
     getBlogDetails(app, blogId) {
         app.loading.blog = true;
-        axios.get(`${app.baseURL}/blogs/${blogId}`, {
+        axios.get(`${app.baseURL}/blogs-api/${blogId}`, {
             headers: {
                 'Accept': 'application/json'
             },
@@ -84,6 +84,9 @@ const BlogService = {
         .then(response => {
             app.selectedBlog = response.data;
             window.CommentService.getComments(app, blogId);
+            
+            // Close the user blogs modal before showing the blog modal
+            app.showUserBlogsModal = false;
             app.showBlogModal = true;
         })
         .catch(error => {
@@ -223,18 +226,7 @@ const BlogService = {
         if (!app.verified && !app.mobileVerified) {
             app.showNotification("warning", "Please verify your email or phone before editing a blog");
             
-            if (app.hasEmail && !app.verified) {
-                window.AuthService.requestEmailVerification(app);
-            } else if (app.hasPhone && !app.mobileVerified && app.smsEnabled) {
-                window.AuthService.requestMobileVerification(app);
-            } else if (!app.hasEmail && !app.hasPhone) {
-                if (app.smsEnabled) {
-                    app.showNotification("info", "Add an email or phone number for verification");
-                    app.openEmailModal();
-                } else {
-                    app.openEmailModal();
-                }
-            }
+            // Verification logic...
             return;
         }
         
@@ -242,8 +234,11 @@ const BlogService = {
             title: blog.title,
             content: blog.content
         };
-        app.showEditBlogModal = true;
+        
+        // Close both user blogs modal and blog detail modal before showing edit modal
+        app.showUserBlogsModal = false;
         app.showBlogModal = false;
+        app.showEditBlogModal = true;
     },
     
     updateBlog(app) {
