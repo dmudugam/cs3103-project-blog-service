@@ -269,17 +269,19 @@ const AuthService = {
             app.emailOtpForm.error = null;
         }
         
-        // Make sure we set the userId in the form
-        if (app.userId) {
-            app.emailOtpForm.userId = app.userId;
+        // Use emailOtpForm.userId if available, otherwise use app.userId
+        const userId = app.emailOtpForm.userId || app.userId;
+        
+        if (!userId) {
+            app.showNotification("error", "User ID not found. Please try again.");
+            return;
         }
         
         // Check if this is part of an email update process
         const isEmailUpdate = app.showEmailOtpModal && app.hasEmail;
         
         const requestData = {
-            userId: app.userId,
-            // Add this flag when in the OTP modal during update
+            userId: userId,
             updatingEmail: isEmailUpdate
         };
         
@@ -296,8 +298,10 @@ const AuthService = {
             }
         )
         .then(response => {
-            // Make sure we have the userId set for verification
-            app.emailOtpForm.userId = app.userId;
+            // Keep the existing userId for verification
+            if (!app.emailOtpForm.userId) {
+                app.emailOtpForm.userId = userId;
+            }
             
             // Show the OTP modal
             app.showEmailOtpModal = true;

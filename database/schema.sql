@@ -461,26 +461,28 @@ CREATE PROCEDURE verifyOTP(
     otpIn VARCHAR(64)
 )
 BEGIN
-    DECLARE userId INT;
-    DECLARE newEmail VARCHAR(100);
+    DECLARE foundUserId INT;
+    DECLARE pendingEmail VARCHAR(100);
     
-    SELECT v.userId INTO userId
+    -- Verify the token is valid
+    SELECT v.userId INTO foundUserId
     FROM verification v
     WHERE v.userId = userIdIn
     AND v.verificationToken = otpIn
-    AND v.expiresAt > NOW();
+    AND v.expiresAt > NOW()
+    LIMIT 1;
     
     -- If user found and token is valid
-    IF userId IS NOT NULL THEN
+    IF foundUserId IS NOT NULL THEN
         -- Get the pending email change if any
-        SELECT newEmail INTO newEmail
+        SELECT newEmail INTO pendingEmail
         FROM pending_email_changes
         WHERE userId = userIdIn;
         
         -- Apply the email change if there is one
-        IF newEmail IS NOT NULL THEN
+        IF pendingEmail IS NOT NULL THEN
             UPDATE users
-            SET email = newEmail
+            SET email = pendingEmail
             WHERE userId = userIdIn;
             
             -- Delete the pending change
@@ -490,15 +492,15 @@ BEGIN
         
         -- Add to verified users
         INSERT IGNORE INTO verified_users (userId)
-        VALUES (userId);
+        VALUES (foundUserId);
         
         -- Remove verification record
         DELETE FROM verification 
         WHERE userId = userIdIn;
         
-        SELECT TRUE as success, userId;
+        SELECT TRUE as success, foundUserId, pendingEmail as updated_email;
     ELSE
-        SELECT FALSE as success, NULL as userId;
+        SELECT FALSE as success, NULL as userId, NULL as updated_email;
     END IF;
 END //
 DELIMITER ;
@@ -550,44 +552,46 @@ CREATE PROCEDURE verifyMobileOTP(
     otpIn VARCHAR(6)
 )
 BEGIN
-    DECLARE userId INT;
-    DECLARE newPhone VARCHAR(20);
+    DECLARE foundUserId INT;
+    DECLARE pendingPhone VARCHAR(20);
     
-    SELECT v.userId INTO userId
+    -- Verify the token is valid
+    SELECT v.userId INTO foundUserId
     FROM mobile_verification v
     WHERE v.userId = userIdIn
     AND v.verificationToken = otpIn
-    AND v.expiresAt > NOW();
+    AND v.expiresAt > NOW()
+    LIMIT 1;
     
-    -- If user found and token is valid
-    IF userId IS NOT NULL THEN
-        -- Get the pending phone change if any
-        SELECT newPhone INTO newPhone
+    IF foundUserId IS NOT NULL THEN
+        -- Get the pending phone change
+        SELECT newPhone INTO pendingPhone
         FROM pending_phone_changes
         WHERE userId = userIdIn;
         
-        -- Apply the phone change if there is one
-        IF newPhone IS NOT NULL THEN
+        -- Apply the phone change if a pending phone was found
+        IF pendingPhone IS NOT NULL THEN
+            -- Update the user's phone number
             UPDATE users
-            SET phone_number = newPhone
+            SET phone_number = pendingPhone
             WHERE userId = userIdIn;
             
-            -- Delete the pending change
+            -- Remove the pending change
             DELETE FROM pending_phone_changes
             WHERE userId = userIdIn;
         END IF;
         
-        -- Add to mobile verified users
+        -- Mark as verified regardless of whether there was a pending phone
         INSERT IGNORE INTO mobile_verified_users (userId)
-        VALUES (userId);
+        VALUES (foundUserId);
         
         -- Remove verification record
         DELETE FROM mobile_verification 
         WHERE userId = userIdIn;
         
-        SELECT TRUE as success, userId;
+        SELECT TRUE as success, foundUserId as userId, pendingPhone as updated_phone;
     ELSE
-        SELECT FALSE as success, NULL as userId;
+        SELECT FALSE as success, NULL as userId, NULL as updated_phone;
     END IF;
 END //
 DELIMITER ;
@@ -598,7 +602,7 @@ CREATE PROCEDURE getPendingPhone(
     userIdIn INT
 )
 BEGIN
-    SELECT newPhone as phone FROM pending_phone_changes WHERE userId = userIdIn;
+    SELECT newPhone FROM pending_phone_changes WHERE userId = userIdIn;
 END //
 DELIMITER ;
 

@@ -30,6 +30,7 @@ Vue.component('user-blogs', {
             }
         },
         createNewBlog() {
+            this.$emit('close-modal');
             this.$emit('create-blog');
         }
     },
