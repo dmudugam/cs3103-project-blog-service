@@ -269,6 +269,55 @@ const AuthService = {
             app.emailOtpForm.error = null;
         }
         
+        // For LDAP users who just added an email, we need to handle the request differently
+        // since the server might not have processed their email addition yet
+        if (app.userType === 'ldap' && app.showEmailOtpModal && app.emailForm && app.emailForm.email) {
+            // Try updating the email again, which will generate a new OTP
+            app.loading.verification = true;
+            
+            axios.put(`${app.baseURL}/users/email`, 
+                JSON.stringify({
+                    email: app.emailForm.email
+                }), 
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    withCredentials: true
+                }
+            )
+            .then(response => {
+                // Make sure we have the userId set for verification
+                app.emailOtpForm.userId = response.data.userId;
+                
+                // Update app state with the email info
+                app.userEmail = app.emailForm.email;
+                app.hasEmail = true;
+                
+                app.showNotification("success", "Verification OTP sent to your email.");
+            })
+            .catch(error => {
+                console.log("Request email verification error:", error);
+                let message = "Failed to send email verification OTP";
+                if (error.response && error.response.data && error.response.data.message) {
+                    message = error.response.data.message;
+                }
+                
+                // Display error within the modal if it's open, otherwise show notification
+                if (app.showEmailOtpModal) {
+                    app.emailOtpForm.error = message;
+                } else {
+                    app.showNotification("error", message);
+                }
+            })
+            .finally(() => {
+                app.loading.verification = false;
+            });
+            
+            return;
+        }
+        
         // Use emailOtpForm.userId if available, otherwise use app.userId
         const userId = app.emailOtpForm.userId || app.userId;
         
@@ -298,10 +347,8 @@ const AuthService = {
             }
         )
         .then(response => {
-            // Keep the existing userId for verification
-            if (!app.emailOtpForm.userId) {
-                app.emailOtpForm.userId = userId;
-            }
+            // Make sure we have the userId set for verification
+            app.emailOtpForm.userId = userId;
             
             // Show the OTP modal
             app.showEmailOtpModal = true;
@@ -312,6 +359,55 @@ const AuthService = {
             let message = "Failed to send email verification OTP";
             if (error.response && error.response.data && error.response.data.message) {
                 message = error.response.data.message;
+            }
+            
+            // If we get "Please add an email" but we think we have one, try to update it again
+            if (message.includes("Please add an email") && (app.userEmail || (app.emailForm && app.emailForm.email))) {
+                const emailToUse = app.userEmail || app.emailForm.email;
+                
+                // Try updating the email again
+                axios.put(`${app.baseURL}/users/email`, 
+                    JSON.stringify({
+                        email: emailToUse
+                    }), 
+                    {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        withCredentials: true
+                    }
+                )
+                .then(response => {
+                    // Update userId in case it changed
+                    app.emailOtpForm.userId = response.data.userId;
+                    
+                    // Update app state with the email info
+                    app.userEmail = emailToUse;
+                    app.hasEmail = true;
+                    
+                    app.showNotification("success", "Verification OTP sent to your email.");
+                })
+                .catch(innerError => {
+                    console.log("Email update error:", innerError);
+                    
+                    let innerMessage = "Failed to send verification OTP";
+                    if (innerError.response && innerError.response.data && innerError.response.data.message) {
+                        innerMessage = innerError.response.data.message;
+                    }
+                    
+                    // Display inner error
+                    if (app.showEmailOtpModal) {
+                        app.emailOtpForm.error = innerMessage;
+                    } else {
+                        app.showNotification("error", innerMessage);
+                    }
+                })
+                .finally(() => {
+                    app.loading.verification = false;
+                });
+                
+                return;
             }
             
             // Display error within the modal if it's open, otherwise show notification
