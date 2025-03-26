@@ -55,18 +55,22 @@ class UserEmail(Resource):
         # Get the current user
         username = session['username']
         
-        # Check if email already exists for a different user
-        existing_email_user = sql_call_fetch_one('getUserByEmail', (email,))
-        if existing_email_user and existing_email_user['username'] != username:
-            return make_response(jsonify({'status': 'error', 'message': 'Email address is already in use by another account'}), 400)
-        
         # Get user from session
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
         if not user:
             return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
-        # Store pending email change but don't update main email yet
+        # Check if the new email is the same as the current one
+        if user.get('email') and user['email'] == email:
+            return make_response(jsonify({'status': 'error', 'message': 'The email address is the same as your current one'}), 400)
+        
+        # Check if email already exists for a different user
+        existing_email_user = sql_call_fetch_one('getUserByEmail', (email,))
+        if existing_email_user and existing_email_user['username'] != username:
+            return make_response(jsonify({'status': 'error', 'message': 'Email address is already in use by another account'}), 400)
+        
+        # Update users email
         updated_user = sql_call_fetch_one('updateUserEmail', (user['userId'], email))
         
         if not updated_user:
@@ -79,7 +83,7 @@ class UserEmail(Resource):
         # Store OTP in verification table
         sql_call_fetch_one('createVerification', (updated_user['userId'], otp))
         
-        # Send verification email with OTP to the NEW email
+        # Send verification email with OTP
         from app.services.email_service import send_verification_email
         send_verification_email(email, updated_user['username'], otp)
         
@@ -113,14 +117,18 @@ class UserPhone(Resource):
         if not user:
             return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
-        # Check if user has phone_number, temporarily disable SMS functionality if not
+        # Check if user has phone_number field
         if 'phone_number' not in user:
             return make_response(jsonify({
                 'status': 'error',
                 'message': 'Phone number functionality is not available. The database needs to be updated.'
             }), 400)
         
-        # Store pending phone change for verification
+        # Check if the new phone number is the same as the current one
+        if user.get('phone_number') and user['phone_number'] == phone:
+            return make_response(jsonify({'status': 'error', 'message': 'The phone number is the same as your current one'}), 400)
+        
+        # Update user's phone number
         updated_user = sql_call_fetch_one('updateUserPhone', (user['userId'], phone))
         
         if not updated_user:
@@ -137,7 +145,6 @@ class UserPhone(Resource):
         from app.services.sms_service import send_verification_sms, is_sms_enabled
         sms_sent = False
         if is_sms_enabled():
-            # Send to the new phone number that is pending verification
             sms_sent = send_verification_sms(phone, updated_user['username'], otp)
         
         # Include SMS status in response

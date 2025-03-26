@@ -531,7 +531,7 @@ class CompletePasswordReset(Resource):
         if len(args['password']) < 8 or not re.search(r'[A-Za-z]', args['password']) or not re.search(r'[0-9]', args['password']):
             return make_response(jsonify({'status': 'error', 'message': 'Password must be at least 8 characters and contain both letters and numbers'}), 400)
         
-        # Verify OTP first to make sure its valid
+        # Verify OTP first to make sure its valid and get the user
         user = sql_call_fetch_one('verifyResetOTP', (otp,))
         
         if not user:
@@ -539,6 +539,19 @@ class CompletePasswordReset(Resource):
                 'status': 'error', 
                 'message': 'Invalid or expired reset OTP'
             }), 400)
+        
+        # For local users, check if the new password is the same as the current one
+        existing_user = sql_call_fetch_one('validateLocalUser', (user['username'],))
+        if existing_user and 'password_salt' in existing_user:
+            # Calculate hash for the new password with the existing salt
+            new_password_hash = hashlib.sha256((args['password'] + existing_user['password_salt']).encode()).hexdigest()
+            
+            # Compare with the existing hash
+            if new_password_hash == existing_user['password_hash']:
+                return make_response(jsonify({
+                    'status': 'error',
+                    'message': 'New password must be different from your current password'
+                }), 400)
         
         # Generate salt and hash the password
         salt = uuid.uuid4().hex
@@ -591,3 +604,5 @@ class VerifyResetOTP(Resource):
             'username': user['username'],
             'userId': user['userId']
         }), 200)
+    
+    

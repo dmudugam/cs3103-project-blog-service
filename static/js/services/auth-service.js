@@ -716,6 +716,14 @@ const AuthService = {
             return;
         }
         
+        // Check if this may be the same as the old password (if we have it cached in login form)
+        if (app.loginForm && app.loginForm.password && 
+            app.loginForm.password === app.forgotPasswordForm.password &&
+            app.loginForm.username === app.forgotPasswordForm.username) {
+            app.forgotPasswordForm.error = "New password must be different from your current password";
+            return;
+        }
+        
         app.loading.auth = true;
         axios.post(`${app.baseURL}/auth/reset-password`, 
             JSON.stringify({
