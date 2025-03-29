@@ -550,7 +550,7 @@ class CompletePasswordReset(Resource):
             if new_password_hash == existing_user['password_hash']:
                 return make_response(jsonify({
                     'status': 'error',
-                    'message': 'New password must be different from your current password'
+                    'message': 'New password must be different from your last five passwords.'
                 }), 400)
         
         # Generate salt and hash the password

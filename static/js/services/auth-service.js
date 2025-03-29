@@ -720,7 +720,7 @@ const AuthService = {
         if (app.loginForm && app.loginForm.password && 
             app.loginForm.password === app.forgotPasswordForm.password &&
             app.loginForm.username === app.forgotPasswordForm.username) {
-            app.forgotPasswordForm.error = "New password must be different from your current password";
+            app.forgotPasswordForm.error = "New password must be different from your last five passwords.";
             return;
         }
         

@@ -1,5 +1,5 @@
 def register_routes(api):
-    """Register all API routes"""
+    # Register all API routes
     from app.routes.auth import UserRegistration, AuthLogin, AuthLogout, VerifyOTP, RequestOTP, VerifyMobileOTP, RequestMobileOTP, RequestPasswordReset, CompletePasswordReset, VerifyResetOTP
     from app.routes.blog import BlogList, BlogDetail, BlogCreate, BlogUpdate, BlogDelete
     from app.routes.comment import BlogCommentList, BlogCommentCreate, CommentDetail, CommentUpdate, CommentDelete, CommentReplyList, CommentReplyCreate 
