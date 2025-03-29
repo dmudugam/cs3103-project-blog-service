@@ -62,12 +62,9 @@ def sql_call_fetch_one(proc_name, args=None):
         db_connection.commit()
         return row
     except pymysql.err.IntegrityError as e:
-        # Handle integrity constraint violations specifically
         error_code = e.args[0]
         error_msg = e.args[1]
         print(f"Database integrity error: {error_code}, {error_msg}", file=sys.stderr)
-        
-        # Pass the error details to the caller rather than aborting
         raise e
     except Exception as e:
         print(f"Database error: {e}", file=sys.stderr)

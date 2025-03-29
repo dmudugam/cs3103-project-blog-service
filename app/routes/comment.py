@@ -8,12 +8,10 @@ from app.utils.decorators import login_required, verification_required, ownershi
 
 class BlogCommentList(Resource):
     def get(self, blogId):
-        # Use request.args directly instead of reqparse
         newer_than = request.args.get('newerThan')
         limit = request.args.get('limit', default=20, type=int)
         offset = request.args.get('offset', default=0, type=int)
         
-        # Convert date string to date object if provided
         if newer_than:
             try:
                 from datetime import datetime

@@ -158,13 +158,10 @@ class UserBlogList(Resource):
         user = sql_call_fetch_one('getUserById', (userId,))
         if not user:
             return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
-        
-        # Use direct request.args instead of reqparse
         newer_than = request.args.get('newerThan')
         limit = request.args.get('limit', default=20, type=int)
         offset = request.args.get('offset', default=0, type=int)
-        
-        # Convert date string to date object if provided
+
         if newer_than:
             try:
                 from datetime import datetime

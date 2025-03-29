@@ -491,7 +491,21 @@ const AuthService = {
             return;
         }
         
-        if (!app.hasPhone) {
+        // Get phone from the most accurate source
+        let phoneNumber = null;
+        let isNewPhoneAddition = false;
+        
+        // If we're in the process of adding/updating a phone number, use that value
+        if (app.phoneForm && app.phoneForm.phone) {
+            phoneNumber = app.phoneForm.phone;
+            isNewPhoneAddition = !app.hasPhone; // It's a new addition if hasPhone was false
+        } 
+        // Otherwise use the phone from the user profile
+        else if (app.userPhone) {
+            phoneNumber = app.userPhone;
+        }
+        
+        if (!phoneNumber) {
             app.showNotification("error", "Please add a phone number first");
             app.openPhoneModal();
             return;
@@ -503,13 +517,22 @@ const AuthService = {
         }
         
         // Check if this is part of a phone update process
-        const isPhoneUpdate = app.showMobileOtpModal && app.hasPhone;
+        const isPhoneUpdate = app.showMobileOtpModal && !isNewPhoneAddition;
+        
+        // Important: If we're in the middle of phone verification, always mark as updating
+        const requestData = {
+            updatingPhone: true,
+            phone: phoneNumber // Always include the phone number
+        };
+        
+        console.log("Requesting mobile OTP with:", {
+            updatingPhone: requestData.updatingPhone,
+            phoneNumber: phoneNumber
+        });
         
         app.loading.verification = true;
         axios.post(`${app.baseURL}/auth/request-mobile-otp`, 
-            JSON.stringify({
-                updatingPhone: isPhoneUpdate
-            }), 
+            JSON.stringify(requestData), 
             {
                 headers: {
                     'Content-Type': 'application/json',
@@ -520,6 +543,11 @@ const AuthService = {
         )
         .then(response => {
             app.mobileOtpForm.userId = app.userId;
+            
+            // Update app state so UI reflects we have a phone
+            app.userPhone = phoneNumber;
+            app.hasPhone = true;
+            
             app.showMobileOtpModal = true;
             app.showNotification("success", "Verification OTP sent to your phone.");
         })

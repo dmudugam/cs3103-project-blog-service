@@ -234,8 +234,7 @@ class AuthLogin(Resource):
                 # Check if user is verified via email
                 verified_result = sql_call_fetch_one('isUserVerified', (user['userId'],))
                 is_verified = verified_result and verified_result.get('verified', 0) > 0
-                
-                # Access for mobile verification
+
                 try:
                     # Check if user is verified via mobile
                     mobile_verified_result = sql_call_fetch_one('isMobileVerified', (user['userId'],))
@@ -323,7 +322,7 @@ class RequestOTP(Resource):
         if not user.get('email'):
             return make_response(jsonify({'status': 'error', 'message': 'Please add an email address first'}), 400)
         
-        # Only check verification status if we're not updating email
+        # Only check verification status if were not updating email
         if not args['updatingEmail']:
             # Check if user is already verified
             verified_result = sql_call_fetch_one('isUserVerified', (user['userId'],))
@@ -360,7 +359,7 @@ class RequestOTP(Resource):
         return make_response(jsonify({
             'status': 'success', 
             'message': 'Verification OTP sent to email',
-            'userId': user['userId']  # Include userId in response
+            'userId': user['userId']
         }), 200)
 
 # Mobile OTP verification
@@ -393,6 +392,7 @@ class RequestMobileOTP(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('userId', type=int, required=False, help='User ID is required')
         parser.add_argument('updatingPhone', type=bool, required=False, default=False)
+        parser.add_argument('phone', type=str, required=False, help='Phone number')
         args = parser.parse_args()
         
         user = None
@@ -409,22 +409,38 @@ class RequestMobileOTP(Resource):
         if not user:
             return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
-        # First check if there's a pending phone number update for this user
-        pending_phone = None
-        try:
-            pending_result = sql_call_fetch_one('getPendingPhone', (user['userId'],))
-            if pending_result and 'phone' in pending_result:
-                pending_phone = pending_result['phone']
-                print(f"Found pending phone: {pending_phone}")
-        except Exception as e:
-            print(f"Error checking pending phone: {e}")
+        # If phone is provided in the request, use that and update the user's record
+        phone_to_use = None
+        if args.get('phone'):
+            phone_to_use = args['phone']
+            
+            # Update the user's phone in the database
+            try:
+                # Update phone number in the database
+                sql_call_fetch_one('updateUserPhone', (user['userId'], phone_to_use))
+                print(f"Updated phone for user {user['userId']} to {phone_to_use}")
+            except Exception as e:
+                print(f"Error updating phone: {e}")
         
-        # If we have a pending phone, use that; otherwise check if the user has a phone in their profile
-        if pending_phone:
-            phone_to_use = pending_phone
-        elif safe_get(user, 'phone_number'):
-            phone_to_use = user.get('phone_number')
-        else:
+        # Then check for pending phone or existing phone
+        if not phone_to_use:
+            # First check if there's a pending phone number update for this user
+            pending_phone = None
+            try:
+                pending_result = sql_call_fetch_one('getPendingPhone', (user['userId'],))
+                if pending_result and 'phone' in pending_result:
+                    pending_phone = pending_result['phone']
+                    print(f"Found pending phone: {pending_phone}")
+            except Exception as e:
+                print(f"Error checking pending phone: {e}")
+            
+            # If we have a pending phone, use that; otherwise check if the user has a phone in their profile
+            if pending_phone:
+                phone_to_use = pending_phone
+            elif safe_get(user, 'phone_number'):
+                phone_to_use = user.get('phone_number')
+        
+        if not phone_to_use:
             return make_response(jsonify({'status': 'error', 'message': 'No phone number found. Please add a phone number first.'}), 400)
         
         # Only check verification status if we're not updating phone
@@ -437,7 +453,6 @@ class RequestMobileOTP(Resource):
                 if is_mobile_verified and not pending_phone:
                     return make_response(jsonify({'status': 'error', 'message': 'Phone is already verified'}), 400)
             except Exception as e:
-                # Continue with the rest of the function...
                 print(f"Error checking mobile verification: {e}")
                 pass
         
@@ -492,7 +507,7 @@ class RequestPasswordReset(Resource):
         user = sql_call_fetch_one('getUserByEmail', (email,))
         
         # Always return success
-        if user and user['user_type'] == 'local':  # Only allow resets for local accounts, not LDAP
+        if user and user['user_type'] == 'local': 
             try:
                 # Generate a 6-digit OTP
                 otp = generate_otp()
@@ -604,5 +619,4 @@ class VerifyResetOTP(Resource):
             'username': user['username'],
             'userId': user['userId']
         }), 200)
-    
-    
+

@@ -386,9 +386,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- ===================================================================
 -- USER NOTIFICATION PREFERENCES
--- ===================================================================
 
 DROP PROCEDURE IF EXISTS getUserNotificationPreferences;
 DELIMITER //
@@ -424,9 +422,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- ===================================================================
 -- EMAIL VERIFICATION PROCEDURES
--- ===================================================================
 
 DROP PROCEDURE IF EXISTS createVerification;
 DELIMITER //
@@ -515,9 +511,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- ===================================================================
 -- MOBILE VERIFICATION PROCEDURES
--- ===================================================================
 
 DROP PROCEDURE IF EXISTS createMobileVerification;
 DELIMITER //
@@ -606,9 +600,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- ===================================================================
 -- PASSWORD RESET PROCEDURES
--- ===================================================================
 
 DROP PROCEDURE IF EXISTS createPasswordResetOTP;
 DELIMITER //
@@ -679,9 +671,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- ===================================================================
 -- BLOG MANAGEMENT PROCEDURES
--- ===================================================================
 
 DROP PROCEDURE IF EXISTS getBlogs;
 DELIMITER //
@@ -819,9 +809,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- ===================================================================
 -- COMMENT MANAGEMENT PROCEDURES
--- ===================================================================
 
 DROP PROCEDURE IF EXISTS getCommentsByBlog;
 DELIMITER //
@@ -958,9 +946,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- ===================================================================
 -- MAINTENANCE PROCEDURES
--- ===================================================================
 
 DROP PROCEDURE IF EXISTS cleanupExpiredVerifications;
 DELIMITER //

@@ -17,11 +17,9 @@ def send_email(to_email, subject, body):
     msg['Subject'] = subject
     
     msg.attach(MIMEText(body, 'plain'))
-    
-    # Getting the current application context for the thread
+
     app_context = current_app._get_current_object()
     
-    # Getting config values before passing to thread
     smtp_server = current_app.config['SMTP_SERVER']
     smtp_port = current_app.config['SMTP_PORT']
     smtp_username = current_app.config['SMTP_USERNAME']
