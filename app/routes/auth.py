@@ -392,8 +392,8 @@ class RequestMobileOTP(Resource):
             pending_phone = None
             try:
                 pending_result = sql_call_fetch_one('getPendingPhone', (user['userId'],))
-                if pending_result and 'phone' in pending_result:
-                    pending_phone = pending_result['phone']
+                if pending_result and 'newPhone' in pending_result:
+                    pending_phone = pending_result['newPhone']
                     print(f"Found pending phone: {pending_phone}")
             except Exception as e:
                 print(f"Error checking pending phone: {e}")

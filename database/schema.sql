@@ -739,7 +739,7 @@ DELIMITER ;
 DROP PROCEDURE IF EXISTS createBlog;
 DELIMITER //
 CREATE PROCEDURE createBlog(
-    titleIn VARCHAR(50),
+    titleIn longtext,
     contentIn longtext,
     userIdIn int
 )
@@ -764,7 +764,7 @@ DROP PROCEDURE IF EXISTS updateBlog;
 DELIMITER //
 CREATE PROCEDURE updateBlog(
     blogIdIn INT,
-    titleIn VARCHAR(50),
+    titleIn longtext,
     contentIn longtext,
     userIdIn INT
 )

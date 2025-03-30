@@ -6,7 +6,7 @@ const Formatters = {
         const date = new Date(dateString);
         
         // Add 3 hours to adjust for Atlantic Time
-        const adjustedDate = new Date(date.getTime() + (3 * 60 * 60 * 1000));
+        const adjustedDate = new Date(date.getTime());
         
         return adjustedDate.toLocaleDateString() + ' ' + adjustedDate.toLocaleTimeString([], { 
             hour: '2-digit', 
