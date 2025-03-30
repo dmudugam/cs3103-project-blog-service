@@ -1,9 +1,11 @@
-// Blog services
+/**
+ * Blog Service
+ */
 const BlogService = {
+    
     getBlogs(app, options = {}) {
         app.loading.blogs = true;
         
-        // Build query parameters
         let params = new URLSearchParams();
         if (options.newerThan) params.append('newerThan', options.newerThan);
         if (options.author) params.append('author', options.author);
@@ -12,7 +14,6 @@ const BlogService = {
         if (options.offset) params.append('offset', options.offset);
         else params.append('offset', app.pagination.offset);
         
-        // For GET requests, only set Accept header, not Content-Type
         axios.get(`${app.baseURL}/blogs-api?${params.toString()}`, {
             headers: {
                 'Accept': 'application/json'
@@ -21,7 +22,6 @@ const BlogService = {
         })
         .then(response => {
             if (options.append) {
-                // Append to existing blogs
                 app.blogs = [...app.blogs, ...response.data];
             } else {
                 app.blogs = response.data;
@@ -47,6 +47,7 @@ const BlogService = {
         });
     },
     
+    // Get blogs for the current user
     getUserBlogs(app) {
         if (!app.authenticated) {
             app.showNotification("error", "Please login first");
@@ -73,6 +74,7 @@ const BlogService = {
         });
     },
     
+    // Get details for a specific blog
     getBlogDetails(app, blogId) {
         app.loading.blog = true;
         axios.get(`${app.baseURL}/blogs-api/${blogId}`, {
@@ -84,8 +86,6 @@ const BlogService = {
         .then(response => {
             app.selectedBlog = response.data;
             window.CommentService.getComments(app, blogId);
-            
-            // Close the user blogs modal before showing the blog modal
             app.showUserBlogsModal = false;
             app.showBlogModal = true;
         })
@@ -98,6 +98,8 @@ const BlogService = {
         });
     },
     
+
+    // Create a new blog post
     createBlog(app) {
         if (!app.authenticated) {
             app.showNotification("error", "Please login first");
@@ -122,11 +124,13 @@ const BlogService = {
             return;
         }
         
+        // Validate required fields
         if (!app.newBlog.title || !app.newBlog.content) {
             app.showNotification("error", "Title and content are required");
             return;
         }
         
+        // Create the blog post
         app.loading.blog = true;
         axios.post(`${app.baseURL}/blogs/create`, 
             JSON.stringify({
@@ -147,15 +151,12 @@ const BlogService = {
             // Close the modal
             app.showCreateBlogModal = false;
             
-            // Reset the form
             app.newBlog = {
                 title: "",
                 content: ""
             };
             
-            // Check if we have loaded more than the first page
             if (app.pagination.offset > 0) {
-                // Reset pagination and get all blogs from the beginning
                 app.pagination.offset = 0;
                 
                 // Get first page
@@ -166,14 +167,12 @@ const BlogService = {
                     withCredentials: true
                 })
                 .then(firstPageResponse => {
-                    // Start with first page of blogs
                     app.blogs = firstPageResponse.data;
                     
                     // If we previously had more pages, fetch them recursively
                     this.loadRemainingPages(app, app.pagination.limit);
                 });
             } else {
-                // Just reload the first page if that's all we had
                 this.getBlogs(app);
             }
         })
@@ -190,33 +189,7 @@ const BlogService = {
         });
     },
     
-    loadRemainingPages(app, pageSize, currentOffset = pageSize) {
-        axios.get(`${app.baseURL}/blogs?limit=${pageSize}&offset=${currentOffset}`, {
-            headers: {
-                'Accept': 'application/json'
-            },
-            withCredentials: true
-        })
-        .then(response => {
-            if (response.data && response.data.length > 0) {
-                // Append these blogs to the list
-                app.blogs = [...app.blogs, ...response.data];
-                
-                // Update pagination status
-                app.pagination.hasMore = response.data.length >= pageSize;
-                
-                // If we got a full page, there might be more
-                if (response.data.length >= pageSize) {
-                    // Load the next page
-                    this.loadRemainingPages(app, pageSize, currentOffset + pageSize);
-                }
-            }
-        })
-        .catch(error => {
-            console.log("Error loading additional pages:", error);
-        });
-    },
-    
+    // Prepare blog for editing
     prepareEditBlog(app, blog) {
         if (!app.authenticated || blog.userId !== app.userId) {
             app.showNotification("error", "You don't have permission to edit this blog");
@@ -225,8 +198,6 @@ const BlogService = {
         
         if (!app.verified && !app.mobileVerified) {
             app.showNotification("warning", "Please verify your email or phone before editing a blog");
-            
-            // Verification logic...
             return;
         }
         
@@ -235,12 +206,13 @@ const BlogService = {
             content: blog.content
         };
         
-        // Close both user blogs modal and blog detail modal before showing edit modal
+        // Bug Fix - BuG Bash 3: Close both user blogs modal and blog detail modal before showing edit modal
         app.showUserBlogsModal = false;
         app.showBlogModal = false;
         app.showEditBlogModal = true;
     },
     
+    // Update an existing blog
     updateBlog(app) {
         if (!app.authenticated) {
             app.showNotification("error", "Please login first");
@@ -265,6 +237,7 @@ const BlogService = {
             return;
         }
         
+        // Validate required fields and selection
         if (!app.selectedBlog) {
             app.showNotification("error", "No blog selected");
             return;
@@ -275,6 +248,7 @@ const BlogService = {
             return;
         }
         
+        // Update the blog
         app.loading.blog = true;
         axios.put(`${app.baseURL}/blogs/${app.selectedBlog.blogId}/update`, 
             JSON.stringify({
@@ -295,8 +269,6 @@ const BlogService = {
             
             app.showNotification("success", "Blog updated successfully");
             app.showEditBlogModal = false;
-            
-            // Refresh blogs
             this.getBlogs(app);
             
             // Refresh user blogs if modal is open
@@ -317,6 +289,7 @@ const BlogService = {
         });
     },
     
+    // Delete a blog
     deleteBlog(app, blog) {
         if (!app.authenticated) {
             app.showNotification("error", "Please login first");
@@ -341,6 +314,7 @@ const BlogService = {
             return;
         }
         
+        // Determine which blog to delete
         if (!blog) {
             blog = app.selectedBlog;
         }
@@ -350,6 +324,7 @@ const BlogService = {
             return;
         }
         
+        // Check ownership
         if (blog.userId !== app.userId) {
             app.showNotification("error", "You don't have permission to delete this blog");
             return;
@@ -365,14 +340,10 @@ const BlogService = {
         .then(response => {
             app.showNotification("success", "Blog deleted successfully");
             
-            // Close modals
             app.showBlogModal = false;
             app.showEditBlogModal = false;
             
-            // Refresh blogs
             this.getBlogs(app);
-            
-            // Refresh user blogs if modal is open
             if (app.showUserBlogsModal) {
                 this.getUserBlogs(app);
             }
@@ -387,6 +358,29 @@ const BlogService = {
         })
         .finally(() => {
             app.loading.blog = false;
+        });
+    },
+    
+    // Recursively load remaining pages when refreshing blog list after a change
+    loadRemainingPages(app, pageSize, currentOffset = pageSize) {
+        axios.get(`${app.baseURL}/blogs?limit=${pageSize}&offset=${currentOffset}`, {
+            headers: {
+                'Accept': 'application/json'
+            },
+            withCredentials: true
+        })
+        .then(response => {
+            if (response.data && response.data.length > 0) {
+                app.blogs = [...app.blogs, ...response.data];
+                
+                app.pagination.hasMore = response.data.length >= pageSize;
+                if (response.data.length >= pageSize) {
+                    this.loadRemainingPages(app, pageSize, currentOffset + pageSize);
+                }
+            }
+        })
+        .catch(error => {
+            console.log("Error loading additional pages:", error);
         });
     }
 };

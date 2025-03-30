@@ -3,7 +3,6 @@ from flask import current_app, abort, request
 import sys
 
 def get_db_connection():
-    """Get a database connection"""
     try:
         connection = pymysql.connect(
             host=current_app.config['DB_HOST'],
@@ -19,7 +18,6 @@ def get_db_connection():
         abort(500)
 
 def sql_call_fetch_all(proc_name, args=None):
-    """Execute a stored procedure and fetch all results"""
     cursor = None
     db_connection = None
     try:
@@ -46,7 +44,6 @@ def sql_call_fetch_all(proc_name, args=None):
             db_connection.close()
 
 def sql_call_fetch_one(proc_name, args=None):
-    """Execute a stored procedure and fetch one result"""
     cursor = None
     db_connection = None
     try:

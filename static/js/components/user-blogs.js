@@ -1,7 +1,5 @@
 /**
  * User Blogs Component
- * 
- * Display a user's personal blog collection.
  */
 Vue.component('user-blogs', {
     props: {
@@ -14,34 +12,42 @@ Vue.component('user-blogs', {
             default: false
         }
     },
+    
     methods: {
         formatDate(dateString) {
             return window.Formatters.formatDate(dateString);
         },
+
         viewBlog(blogId) {
             this.$emit('view-blog', blogId);
         },
+        
         editBlog(blog) {
             this.$emit('edit-blog', blog);
         },
+
         deleteBlog(blog) {
             if (confirm('Are you sure you want to delete this blog?')) {
                 this.$emit('delete-blog', blog);
             }
         },
+        
         createNewBlog() {
             this.$emit('close-modal');
             this.$emit('create-blog');
         }
     },
+
     template: `
         <div>
+            <!-- Loading state -->
             <div v-if="loading" class="text-center my-4">
                 <div class="spinner-border text-primary" role="status">
                     <span class="sr-only">Loading...</span>
                 </div>
             </div>
             
+            <!-- Blog list state -->
             <div v-else-if="blogs.length" class="user-blog-list">
                 <div v-for="blog in blogs" :key="blog.blogId" class="user-blog-item">
                     <div class="user-blog-header">
@@ -56,10 +62,12 @@ Vue.component('user-blogs', {
                 </div>
             </div>
             
+            <!-- Empty state -->
             <div v-else class="text-center my-4">
                 <p>You haven't created any blogs yet.</p>
             </div>
             
+            <!-- Create blog button -->
             <div class="text-center mt-4">
                 <button type="button" class="btn btn-outline-primary" @click="createNewBlog">Create New Blog</button>
             </div>

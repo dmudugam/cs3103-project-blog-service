@@ -9,5 +9,4 @@ Vue.component("modal", {
     }
 });
 
-// Exporting for use in main application
 window.Modal = Vue.component('modal');

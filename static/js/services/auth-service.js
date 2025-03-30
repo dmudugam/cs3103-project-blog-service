@@ -1,5 +1,8 @@
-// Authentication services
+/**
+ * Authentication Service
+ */
 const AuthService = {
+
     checkAuth(app) {
         app.loading.auth = true;
         
@@ -15,29 +18,24 @@ const AuthService = {
                 app.verified = response.data.verified;
                 app.mobileVerified = response.data.mobileVerified;
                 app.userType = response.data.userType || 'local';
-                
-                // Handle email data
                 app.userEmail = response.data.email;
                 app.hasEmail = Boolean(response.data.email);
-                
-                // Handle phone data
                 app.userPhone = response.data.phoneNumber;
                 app.hasPhone = Boolean(response.data.phoneNumber);
                 
-                // Store phone number in state
+                // Store phone number
                 if (app.userPhone) {
                     localStorage.setItem('userPhone', app.userPhone);
                     localStorage.setItem('userId', app.userId);
                 }
                 
-                // Mark phone as added if mobile is verified
+                // Bugfix after Bug Bash 2 - Mark phone as added if mobile is verified
                 if (response.data.mobileVerified) {
                     app.hasPhone = true;
                 }
                 
                 app.smsEnabled = response.data.smsEnabled;
                 
-                // Get notification preferences if authenticated
                 app.getNotificationPreferences();
             } else {
                 this.resetUserState(app);
@@ -53,7 +51,7 @@ const AuthService = {
             app.loading.auth = false;
         });
     },
-    
+
     resetUserState(app) {
         app.authenticated = false;
         app.userId = null;
@@ -69,7 +67,6 @@ const AuthService = {
     },
     
     login(app) {
-        // Clear previous error
         app.loginForm.error = null;
         
         if (!app.loginForm.username || !app.loginForm.password) {
@@ -99,27 +96,20 @@ const AuthService = {
             app.verified = response.data.verified;
             app.mobileVerified = response.data.mobileVerified;
             app.userType = response.data.userType || 'ldap';
-            
-            // Handle email data
             app.userEmail = response.data.email;
             app.hasEmail = Boolean(response.data.email);
-            
-            // Handle phone data
             app.userPhone = response.data.phoneNumber;
             app.hasPhone = Boolean(response.data.phoneNumber);
             
             if (response.data.mobileVerified && !response.data.phoneNumber) {
-                // Restoring phone from state
                 const savedUserId = localStorage.getItem('userId');
                 const savedPhone = localStorage.getItem('userPhone');
                 
                 if (savedUserId && savedUserId == app.userId && savedPhone) {
-                    console.log("Restored phone number from localStorage:", savedPhone);
                     app.userPhone = savedPhone;
                     app.phoneForm.phone = savedPhone;
                 }
-                
-                // Mark phone as added if mobile was verified
+
                 app.hasPhone = true;
             }
             
@@ -129,10 +119,8 @@ const AuthService = {
             app.loginForm.password = "";
             app.showNotification("success", "Login successful");
             
-            // Get notification preferences
             app.getNotificationPreferences();
-            
-            // If user doesn't have email or phone, show messages
+
             if (!app.hasEmail && !app.hasPhone && app.smsEnabled) {
                 setTimeout(() => {
                     app.showNotification("warning", "Please add your email address or phone number for verification");
@@ -145,11 +133,8 @@ const AuthService = {
                 }, 1000);
             }
             
-            // Refresh blogs
             app.getBlogs();
             
-            // If we don't have a phone number but we're mobile verified, 
-            // trigger a refresh from the server after a short delay
             if (response.data.mobileVerified && !app.userPhone) {
                 setTimeout(() => {
                     window.UserService.refreshUserData(app);
@@ -162,7 +147,6 @@ const AuthService = {
             if (error.response && error.response.data && error.response.data.message) {
                 message = error.response.data.message;
             }
-            // Display error
             app.loginForm.error = message;
         })
         .finally(() => {
@@ -170,11 +154,36 @@ const AuthService = {
         });
     },
     
+    // End user session
+    logout(app) {
+        app.loading.auth = true;
+        axios.post(`${app.baseURL}/auth/logout`, {}, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            withCredentials: true
+        })
+        .then(response => {
+            this.resetUserState(app);
+            localStorage.removeItem('userPhone');
+            localStorage.removeItem('userId');
+            
+            app.showNotification("success", "Logout successful");
+        })
+        .catch(error => {
+            console.log("Logout error:", error);
+            app.showNotification("error", "Logout failed");
+        })
+        .finally(() => {
+            app.loading.auth = false;
+        });
+    },
+    
+    
+    // Register a new user
     register(app) {
-        // Clear previous error
         app.registerForm.error = null;
-        
-        // Validate form using FormValidators
         const validationResult = window.FormValidators.validateForm(app.registerForm, {
             username: { required: true, label: "Username" },
             email: { required: true, email: true, label: "Email" },
@@ -203,10 +212,8 @@ const AuthService = {
             }
         )
         .then(response => {
-            // Show success notification
             app.showNotification("success", "Registration successful! Please check your email for verification.");
             
-            // Get user ID from response
             const userId = response.data.userId;
             
             // Clear form and close modal
@@ -219,7 +226,6 @@ const AuthService = {
             };
             app.showRegisterModal = false;
             
-            // Set up and show the email OTP verification modal
             app.emailOtpForm.userId = userId;
             app.showEmailOtpModal = true;
         })
@@ -236,43 +242,14 @@ const AuthService = {
         });
     },
     
-    logout(app) {
-        app.loading.auth = true;
-        axios.post(`${app.baseURL}/auth/logout`, {}, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            withCredentials: true
-        })
-        .then(response => {
-            this.resetUserState(app);
-            
-            // Clear state on logout
-            localStorage.removeItem('userPhone');
-            localStorage.removeItem('userId');
-            
-            app.showNotification("success", "Logout successful");
-        })
-        .catch(error => {
-            console.log("Logout error:", error);
-            app.showNotification("error", "Logout failed");
-        })
-        .finally(() => {
-            app.loading.auth = false;
-        });
-    },
     
+    // Request email verification OTP
     requestEmailVerification(app) {
-        // Clear previous error
         if (app.emailOtpForm) {
             app.emailOtpForm.error = null;
         }
         
-        // For LDAP users who just added an email, we need to handle the request differently
-        // since the server might not have processed their email addition yet
         if (app.userType === 'ldap' && app.showEmailOtpModal && app.emailForm && app.emailForm.email) {
-            // Try updating the email again, which will generate a new OTP
             app.loading.verification = true;
             
             axios.put(`${app.baseURL}/users/email`, 
@@ -288,7 +265,6 @@ const AuthService = {
                 }
             )
             .then(response => {
-                // Make sure we have the userId set for verification
                 app.emailOtpForm.userId = response.data.userId;
                 
                 // Update app state with the email info
@@ -304,7 +280,6 @@ const AuthService = {
                     message = error.response.data.message;
                 }
                 
-                // Display error within the modal if it's open, otherwise show notification
                 if (app.showEmailOtpModal) {
                     app.emailOtpForm.error = message;
                 } else {
@@ -318,7 +293,6 @@ const AuthService = {
             return;
         }
         
-        // Use emailOtpForm.userId if available, otherwise use app.userId
         const userId = app.emailOtpForm.userId || app.userId;
         
         if (!userId) {
@@ -326,7 +300,6 @@ const AuthService = {
             return;
         }
         
-        // Check if this is part of an email update process
         const isEmailUpdate = app.showEmailOtpModal && app.hasEmail;
         
         const requestData = {
@@ -350,22 +323,18 @@ const AuthService = {
             // Make sure we have the userId set for verification
             app.emailOtpForm.userId = userId;
             
-            // Show the OTP modal
             app.showEmailOtpModal = true;
             app.showNotification("success", "Verification OTP sent to your email.");
         })
         .catch(error => {
-            console.log("Request email verification error:", error);
             let message = "Failed to send email verification OTP";
             if (error.response && error.response.data && error.response.data.message) {
                 message = error.response.data.message;
             }
             
-            // If we get "Please add an email" but we think we have one, try to update it again
             if (message.includes("Please add an email") && (app.userEmail || (app.emailForm && app.emailForm.email))) {
                 const emailToUse = app.userEmail || app.emailForm.email;
                 
-                // Try updating the email again
                 axios.put(`${app.baseURL}/users/email`, 
                     JSON.stringify({
                         email: emailToUse
@@ -379,7 +348,6 @@ const AuthService = {
                     }
                 )
                 .then(response => {
-                    // Update userId in case it changed
                     app.emailOtpForm.userId = response.data.userId;
                     
                     // Update app state with the email info
@@ -389,14 +357,12 @@ const AuthService = {
                     app.showNotification("success", "Verification OTP sent to your email.");
                 })
                 .catch(innerError => {
-                    console.log("Email update error:", innerError);
                     
                     let innerMessage = "Failed to send verification OTP";
                     if (innerError.response && innerError.response.data && innerError.response.data.message) {
                         innerMessage = innerError.response.data.message;
                     }
                     
-                    // Display inner error
                     if (app.showEmailOtpModal) {
                         app.emailOtpForm.error = innerMessage;
                     } else {
@@ -410,7 +376,6 @@ const AuthService = {
                 return;
             }
             
-            // Display error within the modal if it's open, otherwise show notification
             if (app.showEmailOtpModal) {
                 app.emailOtpForm.error = message;
             } else {
@@ -422,8 +387,8 @@ const AuthService = {
         });
     },
     
+    // Verify email with OTP
     verifyEmailOTP(app) {
-        // Clear previous error
         app.emailOtpForm.error = null;
         
         if (!app.emailOtpForm.otp) {
@@ -461,13 +426,11 @@ const AuthService = {
             
             app.showNotification("success", "Email verified successfully!");
             
-            // If user is already logged in, refresh auth status
             if (app.authenticated) {
                 this.checkAuth(app);
             }
         })
         .catch(error => {
-            console.log("Email verification error:", error);
             let message = "Email verification failed";
             if (error.response && error.response.data && error.response.data.message) {
                 message = error.response.data.message;
@@ -480,8 +443,8 @@ const AuthService = {
         });
     },
     
+    // Request mobile verification OTP
     requestMobileVerification(app) {
-        // Clear previous error
         if (app.mobileOtpForm) {
             app.mobileOtpForm.error = null;
         }
@@ -491,46 +454,23 @@ const AuthService = {
             return;
         }
         
-        // Get phone from the most accurate source
-        let phoneNumber = null;
-        let isNewPhoneAddition = false;
-        
-        // If we're in the process of adding/updating a phone number, use that value
-        if (app.phoneForm && app.phoneForm.phone) {
-            phoneNumber = app.phoneForm.phone;
-            isNewPhoneAddition = !app.hasPhone; // It's a new addition if hasPhone was false
-        } 
-        // Otherwise use the phone from the user profile
-        else if (app.userPhone) {
-            phoneNumber = app.userPhone;
-        }
-        
-        if (!phoneNumber) {
-            app.showNotification("error", "Please add a phone number first");
-            app.openPhoneModal();
-            return;
-        }
-        
         if (!app.smsEnabled) {
             app.showNotification("warning", "SMS functionality is not enabled on the server");
             return;
         }
         
-        // Check if this is part of a phone update process
-        const isPhoneUpdate = app.showMobileOtpModal && !isNewPhoneAddition;
+        app.loading.verification = true;
         
-        // Important: If we're in the middle of phone verification, always mark as updating
         const requestData = {
-            updatingPhone: true,
-            phone: phoneNumber // Always include the phone number
+            updatingPhone: app.hasPhone
         };
         
-        console.log("Requesting mobile OTP with:", {
-            updatingPhone: requestData.updatingPhone,
-            phoneNumber: phoneNumber
-        });
+        if (app.phoneForm && app.phoneForm.phone) {
+            requestData.phone = app.phoneForm.phone;
+        } else if (app.userPhone) {
+            requestData.phone = app.userPhone;
+        }
         
-        app.loading.verification = true;
         axios.post(`${app.baseURL}/auth/request-mobile-otp`, 
             JSON.stringify(requestData), 
             {
@@ -543,12 +483,15 @@ const AuthService = {
         )
         .then(response => {
             app.mobileOtpForm.userId = app.userId;
-            
-            // Update app state so UI reflects we have a phone
-            app.userPhone = phoneNumber;
-            app.hasPhone = true;
-            
             app.showMobileOtpModal = true;
+            
+            // Store the phone in case we need it later
+            if (response.data.phoneUsed) {
+                app.userPhone = response.data.phoneUsed;
+                app.hasPhone = true;
+                localStorage.setItem('userPhone', app.userPhone);
+            }
+            
             app.showNotification("success", "Verification OTP sent to your phone.");
         })
         .catch(error => {
@@ -558,8 +501,11 @@ const AuthService = {
                 message = error.response.data.message;
             }
             
-            // Display error within the modal if it's open, otherwise show notification
-            if (app.showMobileOtpModal) {
+            // If we get "No phone number found" error, open phone modal
+            if (message.includes("No phone number found")) {
+                app.showNotification("error", "Please add a phone number first");
+                app.openPhoneModal();
+            } else if (app.showMobileOtpModal) {
                 app.mobileOtpForm.error = message;
             } else {
                 app.showNotification("error", message);
@@ -570,8 +516,8 @@ const AuthService = {
         });
     },
     
+    // Verify mobile OTP
     verifyMobileOTP(app) {
-        // Clear previous error
         app.mobileOtpForm.error = null;
         
         if (!app.mobileOtpForm.otp) {
@@ -609,7 +555,6 @@ const AuthService = {
             
             app.showNotification("success", "Phone number verified successfully!");
             
-            // If user is already logged in, refresh auth status
             if (app.authenticated) {
                 this.checkAuth(app);
             }
@@ -628,8 +573,8 @@ const AuthService = {
         });
     },
     
+    // Request password reset
     requestPasswordReset(app) {
-        // Clear previous messages
         app.forgotPasswordForm.error = null;
         
         if (!app.forgotPasswordForm.email) {
@@ -659,7 +604,6 @@ const AuthService = {
             // Mark OTP as sent and show success message
             app.forgotPasswordForm.otpSent = true;
             app.forgotPasswordForm.success = "If an account with that email exists, a password reset OTP has been sent.";
-            // Clear success message after 3 seconds so form continues to next step
             setTimeout(() => {
                 app.forgotPasswordForm.success = null;
             }, 3000);
@@ -678,7 +622,6 @@ const AuthService = {
     },
     
     verifyResetOTP(app) {
-        // Clear previous messages
         app.forgotPasswordForm.error = null;
         
         if (!app.forgotPasswordForm.otp) {
@@ -721,8 +664,8 @@ const AuthService = {
         });
     },
     
+    // password reset
     resetPassword(app) {
-        // Clear previous messages
         app.forgotPasswordForm.error = null;
         
         // Validate form
@@ -744,7 +687,7 @@ const AuthService = {
             return;
         }
         
-        // Check if this may be the same as the old password (if we have it cached in login form)
+        // Check if this may be the same as the old password
         if (app.loginForm && app.loginForm.password && 
             app.loginForm.password === app.forgotPasswordForm.password &&
             app.loginForm.username === app.forgotPasswordForm.username) {
@@ -768,7 +711,6 @@ const AuthService = {
         )
         .then(response => {
             app.forgotPasswordForm.success = response.data.message;
-            // Clear the form except for success message
             app.forgotPasswordForm = {
                 ...app.forgotPasswordForm,
                 email: "",

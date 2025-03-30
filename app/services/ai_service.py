@@ -4,13 +4,13 @@ from flask import current_app
 import sys
 
 def generate_content(prompt, mode='generate', content=None):
-    """Generate content using the Gemini API"""
+    # Generate content using the Gemini API
     try:
         # Prepare the prompt based on the mode
         if mode == 'enhance' and content:
             full_prompt = f"Improve this blog content while preserving the main ideas: {content}\n\nEnhancement instructions: {prompt}"
         else:
-            full_prompt = prompt
+            full_prompt = f"{prompt} in paragraphs"
         
         # Call Gemini API
         payload = {
@@ -23,13 +23,13 @@ def generate_content(prompt, mode='generate', content=None):
             'Content-Type': 'application/json'
         }
         
-        # Use API key from settings
+        # API KEY
         url = f"{current_app.config['GEMINI_API_URL']}?key={current_app.config['GEMINI_API_KEY']}"
         
         response = requests.post(url, headers=headers, json=payload)
         response_json = response.json()
         
-        # Extract the generated text from Gemini's response
+        # Extract the generated text from RESPoNSE
         if 'candidates' in response_json and response_json['candidates']:
             generated_text = response_json['candidates'][0]['content']['parts'][0]['text']
             return {

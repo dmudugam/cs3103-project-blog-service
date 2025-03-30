@@ -1,7 +1,9 @@
+/**
+ * Comment Service
+ */
 const CommentService = {
     getComments(app, blogId) {
         app.loading.comments = true;
-        // For GET requests, only set Accept header, not Content-Type
         axios.get(`${app.baseURL}/blogs-api/${blogId}/comments`, {
             headers: {
                 'Accept': 'application/json'
@@ -26,6 +28,7 @@ const CommentService = {
             return;
         }
         
+        // Check verification status
         if (!app.verified && !app.mobileVerified) {
             app.showBlogModal = false;
             
@@ -46,6 +49,7 @@ const CommentService = {
             return;
         }
         
+        // Validate required data
         if (!app.selectedBlog) {
             app.showNotification("error", "No blog selected");
             return;
@@ -58,7 +62,6 @@ const CommentService = {
         
         app.loading.comments = true;
         
-        // Check if this is a direct comment or a reply
         const endpoint = commentData.parentCommentId
             ? `${app.baseURL}/comments/${commentData.parentCommentId}/replies/create`
             : `${app.baseURL}/blogs/${app.selectedBlog.blogId}/comments/create`;
@@ -78,7 +81,6 @@ const CommentService = {
         .then(response => {
             app.showNotification("success", "Comment added successfully");
             
-            // Clear the comment form
             if (app.$refs.blogDetail) {
                 app.$refs.blogDetail.showCommentForm = false;
                 app.$refs.blogDetail.newComment = {
@@ -86,15 +88,12 @@ const CommentService = {
                     parentCommentId: null
                 };
             }
-            
-            // Also clear the app-level form
+
             app.showCommentForm = false;
             app.newComment = {
                 content: "",
                 parentCommentId: null
             };
-            
-            // Refresh comments
             this.getComments(app, app.selectedBlog.blogId);
         })
         .catch(error => {
@@ -111,6 +110,7 @@ const CommentService = {
     },
     
     replyToComment(app, commentId) {
+        // Check verification status
         if (!app.verified && !app.mobileVerified) {
             
             if (app.hasEmail && !app.verified) {
@@ -128,61 +128,63 @@ const CommentService = {
             return;
         }
         
+        // Set up comment form for reply
         app.newComment.parentCommentId = commentId;
         app.showCommentForm = true;
     },
     
-    // Modified deleteComment function to remove the duplicate confirmation
-deleteComment(app, commentId) {
-    if (!app.authenticated) {
-        app.showNotification("error", "Please login first");
-        return;
-    }
-    
-    if (!app.verified && !app.mobileVerified) {
-        app.showNotification("warning", "Please verify your email or phone before deleting comments");
+    deleteComment(app, commentId) {
+        // Check authentication
+        if (!app.authenticated) {
+            app.showNotification("error", "Please login first");
+            return;
+        }
         
-        if (app.hasEmail && !app.verified) {
-            window.AuthService.requestEmailVerification(app);
-        } else if (app.hasPhone && !app.mobileVerified && app.smsEnabled) {
-            window.AuthService.requestMobileVerification(app);
-        } else if (!app.hasEmail && !app.hasPhone) {
-            if (app.smsEnabled) {
-                app.showNotification("info", "Add an email or phone number for verification");
-                app.openEmailModal();
-            } else {
-                app.openEmailModal();
+        // Check verification status
+        if (!app.verified && !app.mobileVerified) {
+            app.showNotification("warning", "Please verify your email or phone before deleting comments");
+            
+            if (app.hasEmail && !app.verified) {
+                window.AuthService.requestEmailVerification(app);
+            } else if (app.hasPhone && !app.mobileVerified && app.smsEnabled) {
+                window.AuthService.requestMobileVerification(app);
+            } else if (!app.hasEmail && !app.hasPhone) {
+                if (app.smsEnabled) {
+                    app.showNotification("info", "Add an email or phone number for verification");
+                    app.openEmailModal();
+                } else {
+                    app.openEmailModal();
+                }
             }
+            return;
         }
-        return;
-    }
-    
-    
-    app.loading.comments = true;
-    axios.delete(`${app.baseURL}/comments/${commentId}/delete`, {
-        headers: {
-            'Accept': 'application/json'
-        },
-        withCredentials: true
-    })
-    .then(response => {
-        app.showNotification("success", "Comment deleted successfully");
         
-        // Refresh comments
-        this.getComments(app, app.selectedBlog.blogId);
-    })
-    .catch(error => {
-        console.log("Error deleting comment:", error);
-        let message = "Failed to delete comment";
-        if (error.response && error.response.data && error.response.data.message) {
-            message = error.response.data.message;
-        }
-        app.showNotification("error", message);
-    })
-    .finally(() => {
-        app.loading.comments = false;
-    });
-}
+        // Delete the comment
+        app.loading.comments = true;
+        axios.delete(`${app.baseURL}/comments/${commentId}/delete`, {
+            headers: {
+                'Accept': 'application/json'
+            },
+            withCredentials: true
+        })
+        .then(response => {
+            app.showNotification("success", "Comment deleted successfully");
+            
+            // Refresh comments
+            this.getComments(app, app.selectedBlog.blogId);
+        })
+        .catch(error => {
+            console.log("Error deleting comment:", error);
+            let message = "Failed to delete comment";
+            if (error.response && error.response.data && error.response.data.message) {
+                message = error.response.data.message;
+            }
+            app.showNotification("error", message);
+        })
+        .finally(() => {
+            app.loading.comments = false;
+        });
+    }
 };
 
 window.CommentService = CommentService;

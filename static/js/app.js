@@ -1,10 +1,13 @@
-// Initialize Vue application
+/**
+ * Blog Service Application
+ */
 document.addEventListener('DOMContentLoaded', function() {
     var app = new Vue({
         el: "#app",
         
         data: {
             baseURL: "https://cs3103.cs.unb.ca:8006",
+            appReady: false,
             authenticated: false,
             verified: false,
             mobileVerified: false,
@@ -30,19 +33,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 title: "",
                 content: ""
             },
-            
             newComment: {
                 content: "",
                 parentCommentId: null
             },
-            
             loginForm: {
                 username: "",
                 password: "",
                 type: "ldap",
                 error: null
             },
-            
             registerForm: {
                 username: "",
                 email: "",
@@ -50,87 +50,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 passwordConfirm: "",
                 error: null
             },
-            
             emailForm: {
                 email: "",
                 error: null
             },
-            
             phoneForm: {
                 phone: "",
                 error: null
             },
-            
             notificationPrefsForm: {
                 notifyOnBlog: true,
                 notifyOnComment: true,
                 error: null
             },
-            
             emailOtpForm: {
                 otp: "",
                 error: null,
                 userId: null
             },
-            
             mobileOtpForm: {
                 otp: "",
                 userId: null,
                 error: null
             },
-            
-            pagination: {
-                limit: 20,
-                offset: 0,
-                hasMore: false
-            },
-            
-            // Modals
-            showLoginModal: false,
-            showRegisterModal: false,
-            showEmailModal: false,
-            showPhoneModal: false,
-            showNotificationPrefsModal: false,
-            showBlogModal: false,
-            showEditBlogModal: false,
-            showCreateBlogModal: false,
-            showUserBlogsModal: false,
-            showCommentForm: false,
-            showEmailOtpModal: false,
-            showMobileOtpModal: false,
-            showForgotPasswordModal: false,
-            showResetPasswordModal: false,
-            
-            // Notifications and alerts
-            notification: {
-                show: false,
-                type: "", // success, error, info, warning
-                message: ""
-            },
-            
-            // Loading states
-            loading: {
-                blogs: false,
-                blog: false,
-                comments: false,
-                auth: false,
-                verification: false
-            },
-            
-            passwordStrength: {
-                score: 0,
-                feedback: ''
-            },
-            
-            aiHelper: {
-                prompt: "",
-                mode: "generate", // 'generate' or 'enhance'
-                loading: false,
-                error: null,
-                generatedContent: ""
-            },
-            showAiHelperModal: false,
-            
             forgotPasswordForm: {
                 email: "",
                 otp: "",
@@ -151,7 +93,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 error: null,
                 success: null
             },
-            appReady: false // Add this flag
+            
+            // UI state
+            pagination: {
+                limit: 20,
+                offset: 0,
+                hasMore: false
+            },
+            notification: {
+                show: false,
+                type: "",
+                message: ""
+            },
+            loading: {
+                blogs: false,
+                blog: false,
+                comments: false,
+                auth: false,
+                verification: false
+            },
+            passwordStrength: {
+                score: 0,
+                feedback: ''
+            },
+            aiHelper: {
+                prompt: "",
+                mode: "generate",
+                loading: false,
+                error: null,
+                generatedContent: ""
+            },
+            
+            showLoginModal: false,
+            showRegisterModal: false,
+            showEmailModal: false,
+            showPhoneModal: false,
+            showNotificationPrefsModal: false,
+            showBlogModal: false,
+            showEditBlogModal: false,
+            showCreateBlogModal: false,
+            showUserBlogsModal: false,
+            showCommentForm: false,
+            showEmailOtpModal: false,
+            showMobileOtpModal: false,
+            showForgotPasswordModal: false,
+            showResetPasswordModal: false,
+            showAiHelperModal: false
         },
         
         computed: {
@@ -160,6 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return this.verified || this.mobileVerified;
             },
             
+            // Returns CSS class based on password strength
             passwordStrengthClass() {
                 if (!this.registerForm.password) return '';
                 if (this.passwordStrength.score === 0) return '';
@@ -176,24 +164,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.appReady = true;
                 })
                 .catch(() => {
-                    // Still set appReady to true even on auth failure
                     this.appReady = true;
                 });
             this.getBlogs();
             
-            // Check for password reset token in URL
             const urlParams = new URLSearchParams(window.location.search);
             const resetToken = urlParams.get('token');
             if (resetToken) {
                 this.openResetPasswordModal(resetToken);
                 
-                // Remove the token from the URL
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         },
         
         methods: {
-            // Authentication Methods
             checkAuth() {
                 return window.AuthService.checkAuth(this);
             },
@@ -210,7 +194,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.AuthService.logout(this);
             },
             
-            // Blog Methods
             getBlogs(options = {}) {
                 window.BlogService.getBlogs(this, options);
             },
@@ -243,7 +226,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.BlogService.deleteBlog(this, blog);
             },
             
-            // Comment Methods
             getComments(blogId) {
                 window.CommentService.getComments(this, blogId);
             },
@@ -263,7 +245,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.CommentService.deleteComment(this, commentId);
             },
             
-            // User Methods
             updateEmail() {
                 window.UserService.updateEmail(this);
             },
@@ -280,7 +261,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.UserService.updateNotificationPreferences(this);
             },
             
-            // Verification Methods 
             requestEmailVerification() {
                 window.AuthService.requestEmailVerification(this);
             },
@@ -297,7 +277,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.AuthService.verifyMobileOTP(this);
             },
             
-            // Password Reset Methods
             requestPasswordReset() {
                 window.AuthService.requestPasswordReset(this);
             },
@@ -310,7 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.AuthService.resetPassword(this);
             },
             
-            // AI Methods
             useAI() {
                 window.AiService.useAI(this);
             },
@@ -323,7 +301,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.AiService.applyAiContent(this);
             },
             
-            // Helper Methods 
             showNotification(type, message) {
                 window.NotificationUtils.show(this, type, message);
             },
@@ -332,7 +309,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 return window.Formatters.formatDate(dateString);
             },
             
-            // Modal Control Methods
+            updatePasswordStrength() {
+                const password = this.registerForm.password;
+                const result = window.FormValidators.validatePassword(password);
+                this.passwordStrength.score = result.score || 0;
+                this.passwordStrength.feedback = result.feedback || '';
+            },
+            
             openLoginModal(type = null) {
                 this.resetForms();
                 if (type) {
@@ -347,25 +330,21 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             
             openEmailModal(errorMessage = null) {
-                // Ignore if it is an event object
+                // Bug Fix - Bug bash 3: Ignore if it is an event object
                 if (errorMessage && errorMessage instanceof Event) {
                     errorMessage = null;
                 }
                 
-                // If user already has an email, fill the form already
                 if (this.hasEmail && this.userEmail) {
                     this.emailForm.email = this.userEmail;
                 } else {
                     this.emailForm.email = "";
                 }
-                
-                // Set error message
                 this.emailForm.error = errorMessage;
                 this.showEmailModal = true;
             },
             
             openPhoneModal() {
-                // clear phine form error
                 this.phoneForm.error = null;
                 
                 // prefill the user phone
@@ -400,8 +379,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.openEmailModal();
                     return;
                 }
-                
-                // Get current notification preferences
                 this.getNotificationPreferences();
                 
                 this.notificationPrefsForm.error = null;
@@ -437,13 +414,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.showCreateBlogModal = true;
             },
             
+            // TODO: Fix the bug where the blog modal is not closing - Bug Bash - 3
             openForgotPasswordModal() {
                 console.log("openForgotPasswordModal called");
-                
-                // Close all modals
+
                 this.closeModals();
                 
-                // Reset the form state
                 this.forgotPasswordForm = {
                     email: "",
                     otp: "",
@@ -456,15 +432,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     success: null
                 };
                 
-                // Force a DOM update before showing the new modal
                 this.$nextTick(() => {
                     console.log("Opening forgot password modal...");
                     this.showForgotPasswordModal = true;
                     
-                    // Debug after setting
-                    console.log("After setting showForgotPasswordModal:", this.showForgotPasswordModal);
-                    
-                    // Fallback: If the modal still no show
                     setTimeout(() => {
                         if (!this.showForgotPasswordModal) {
                             console.log("Forcing modal open with timeout");
@@ -477,9 +448,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.debugModalState();
             },
             
+            // TODO: Remove the temporary fix for the bug - Bug Bash - 3
+            // This is a temporary fix for the bug where the forgot password modal is not opening
             forceOpenForgotPassword() {
                 console.log("Force opening forgot password modal");
-                // Close all modals
                 this.closeModals();
                 // Reset the form
                 this.forgotPasswordForm = {
@@ -609,13 +581,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
             },
             
-            updatePasswordStrength() {
-                const password = this.registerForm.password;
-                const result = window.FormValidators.validatePassword(password);
-                this.passwordStrength.score = result.score || 0;
-                this.passwordStrength.feedback = result.feedback || '';
-            },
-            
+            // TODO: rEmove the Debugging function to log the modal states - Temporary
             debugModalState() {
                 console.log("Modal States:", {
                     showLoginModal: this.showLoginModal,
@@ -642,10 +608,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reload app state
                 this.checkAuth()
                     .then(() => {
-                        console.log("App state refreshed after mobile verification closed");
                     })
                     .catch(error => {
-                        console.error("Error refreshing app state:", error);
                     });
             },
 
@@ -654,15 +618,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.emailOtpForm.otp = "";
                 this.emailOtpForm.error = null;
                 
-                // Reload app state
                 this.checkAuth()
                     .then(() => {
-                        console.log("App state refreshed after email verification closed");
+
                     })
                     .catch(error => {
-                        console.error("Error refreshing app state:", error);
                     });
-            }
+            },
         }
     });
 });

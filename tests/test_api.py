@@ -1,15 +1,6 @@
 #!/usr/bin/env python3
 """
-API Test Cases with curl Commands
-
-All tests should run successfully, including those that 
-require verification.
-
-Usage:
-- Run this file directly to execute all tests in sequence: python test_api.py
-- Run specific test functions by modifying the main section
-- Copy individual curl commands to run them manually
-
+Create the Verified User Account First
 Author: Iresh Issarsing
 Date: March 2025
 """
@@ -59,7 +50,6 @@ def run_curl(command, expected_status=None, capture_json=True, exit_on_error=Fal
     print(f"$ {command}")
     
     try:
-        # Add verbose flag to show HTTP status code
         if "-v" not in command:
             command = command.replace("curl", "curl -v")
             
@@ -67,7 +57,6 @@ def run_curl(command, expected_status=None, capture_json=True, exit_on_error=Fal
         stdout = result.stdout.strip()
         stderr = result.stderr.strip()
         
-        # Extract status code
         status_code = None
         for line in stderr.split('\n'):
             if "< HTTP/" in line:
@@ -77,15 +66,13 @@ def run_curl(command, expected_status=None, capture_json=True, exit_on_error=Fal
                 except (IndexError, ValueError):
                     pass
         
-        # Check status code
         if expected_status and status_code != expected_status:
             print(f"{RED}Expected status {expected_status}, got {status_code}{RESET}")
             if exit_on_error:
                 sys.exit(1)
         elif status_code:
             print(f"{GREEN}Status: {status_code}{RESET}")
-        
-        # Process response
+
         if stdout:
             if capture_json and (stdout.strip().startswith('{') or stdout.strip().startswith('[')):
                 try:
@@ -107,10 +94,7 @@ def run_curl(command, expected_status=None, capture_json=True, exit_on_error=Fal
             sys.exit(1)
         return None
 
-##########################################
 # Authentication Test Cases
-##########################################
-
 def test_login_with_verified_account():
     print_test("Login with verified account")
     # Clean any existing cookie jar
@@ -184,10 +168,7 @@ def test_logout():
     
     return response
 
-##########################################
 # Blog Test Cases
-##########################################
-
 def test_get_blogs():
     print_test("Get all blogs")
     # Try both main endpoints to find the correct one
@@ -205,8 +186,6 @@ def test_get_blogs():
           -k
         """
         response = run_curl(command)
-        
-        # If we get a successful response that is a list or dict without error, use it
         if response is not None:
             if isinstance(response, list) or (isinstance(response, dict) and 'status' not in response):
                 return response
@@ -226,8 +205,6 @@ def test_create_blog():
       -k
     """
     response = run_curl(command, expected_status=201)
-    
-    # If we can't create a blog, the rest of the tests will fail
     if not response or not isinstance(response, dict) or 'blogId' not in response:
         print(f"{RED}Failed to create blog - skipping related tests{RESET}")
         return None
@@ -268,7 +245,6 @@ def test_get_blog_details(blog_id):
         """
         response = run_curl(command)
         
-        # If we get a successful response with the blog data, use it
         if response and isinstance(response, dict) and ('blogId' in response or 'title' in response):
             # Verify it has the title we expect
             if response.get('title') == TEST_BLOG_TITLE:
@@ -304,7 +280,6 @@ def test_update_blog(blog_id):
     """
     response = run_curl(command, expected_status=200)
     
-    # Verify the update worked by checking the title
     if response and isinstance(response, dict) and response.get('title') == TEST_UPDATED_BLOG_TITLE:
         print(f"{GREEN}Blog update successful - title matched{RESET}")
     return response
@@ -356,9 +331,7 @@ def test_delete_nonexistent_blog():
         print(f"{GREEN}Non-existent blog deletion test passed{RESET}")
     return response
 
-##########################################
 # Comment Test Cases
-##########################################
 
 def test_create_comment(blog_id):
     print_test(f"Create comment on blog (ID: {blog_id})")
@@ -494,9 +467,7 @@ def test_delete_comment(comment_id):
         
     return response
 
-##########################################
 # User Test Cases
-##########################################
 
 def test_get_user_blogs():
     print_test("Get user's blogs")
@@ -507,8 +478,7 @@ def test_get_user_blogs():
         return None
     
     user_id = auth_data['userId']
-    
-    # Try both possible endpoints
+
     endpoints = [
         f"{BASE_URL}/users/{user_id}/blogs",
         f"{BASE_URL}/users-api/{user_id}/blogs"
@@ -524,7 +494,6 @@ def test_get_user_blogs():
         """
         response = run_curl(command)
         
-        # If we get an array or a dict without error status, use it
         if response is not None:
             if isinstance(response, list):
                 print(f"{GREEN}Retrieved {len(response)} user blogs{RESET}")
@@ -563,14 +532,12 @@ def test_update_email_invalid():
       -k
     """
     response = run_curl(command, expected_status=400)
-    # Verify we get the right error
     if isinstance(response, dict) and 'message' in response and 'invalid email' in response['message'].lower():
         print(f"{GREEN}Invalid email update test passed{RESET}")
     return response
 
 def test_update_phone():
     print_test("Update user phone number")
-    # Use some test phone number
     test_phone = "+16473959303"
     command = f"""
     curl -X PUT {BASE_URL}/users/phone \\
@@ -596,7 +563,6 @@ def test_update_phone_invalid():
       -k
     """
     response = run_curl(command, expected_status=400)
-    # Verify we get the right error
     if isinstance(response, dict) and 'message' in response and 'phone number' in response['message'].lower():
         print(f"{GREEN}Invalid phone update test passed{RESET}")
     return response
@@ -658,14 +624,12 @@ def test_update_notification_preferences():
     
     return response
 
-##########################################
 # Verification Test Cases
-##########################################
 
 def test_request_email_otp():
     print_test("Request email verification OTP")
     
-    # Get user ID from session first
+    # Get user ID
     auth_data = test_check_auth()
     if not auth_data or 'userId' not in auth_data:
         print(f"{RED}Failed to get user ID{RESET}")
@@ -683,12 +647,12 @@ def test_request_email_otp():
     """
     response = run_curl(command)
     
-    # Handle different response formats
+    # Handle different response
     if response and isinstance(response, dict):
         if 'status' in response and response['status'] == 'success':
             print(f"{GREEN}OTP request successful{RESET}")
         elif 'message' in response:
-            # Handle both string and dict message formats
+            # Handle both string and dict messag
             if isinstance(response['message'], str):
                 if 'already verified' in response['message'].lower():
                     print(f"{GREEN}Account is already verified (expected){RESET}")
@@ -701,7 +665,7 @@ def test_request_email_otp():
 def test_request_mobile_otp():
     print_test("Request mobile verification OTP")
     
-    # Get user ID from session first
+    # Get user ID
     auth_data = test_check_auth()
     if not auth_data or 'userId' not in auth_data:
         print(f"{RED}Failed to get user ID{RESET}")
@@ -717,7 +681,6 @@ def test_request_mobile_otp():
     """
     response = run_curl(command)
     
-    # Handle different response formats
     if response and isinstance(response, dict):
         if 'status' in response and response['status'] == 'success':
             print(f"{GREEN}Mobile OTP request successful{RESET}")
@@ -729,10 +692,7 @@ def test_request_mobile_otp():
     
     return response
 
-##########################################
 # AI Test Cases
-##########################################
-
 def test_generate_ai_content():
     print_test("Generate content with AI")
     command = f"""
@@ -769,9 +729,7 @@ def test_enhance_ai_content():
         print(f"{BLUE}Enhanced content starts with: {content_snippet}{RESET}")
     return response
 
-##########################################
 # Run All Tests
-##########################################
 
 def run_all_tests():
     """Run all API tests in sequence"""

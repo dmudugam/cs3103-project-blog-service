@@ -78,9 +78,10 @@ components:
         mobile_verified:
           type: boolean
       required:
-        - userId
-        - username
-        - user_type
+          - userId
+          - username
+          - email
+          - verified
     
     Blog:
       type: object
@@ -187,6 +188,41 @@ components:
             email:
               type: string
               format: email
+    NewUser:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    NewBlog:
+      type: object
+      required:
+        - title
+        - content
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+
+    NewComment:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+
 
 security:
   - cookieAuth: []

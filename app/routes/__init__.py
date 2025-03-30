@@ -18,10 +18,6 @@ def register_routes(api):
     api.add_resource(VerifyResetOTP, '/auth/verify-reset-otp')
     api.add_resource(CompletePasswordReset, '/auth/reset-password')
     
-    # For backwards compatibility with the original API
-    api.add_resource(AuthLogin, '/user/login', endpoint='user_login')
-    api.add_resource(AuthLogout, '/user/logout', endpoint='user_logout')
-    
     # Blog routes
     api.add_resource(BlogList, '/blogs-api')
     api.add_resource(BlogDetail, '/blogs-api/<int:blogId>')

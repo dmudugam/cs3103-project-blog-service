@@ -1,7 +1,5 @@
 /**
  * Blog Detail Component
- * 
- * Display a single blog post with content, author information,
  */
 
 Vue.component('blog-detail', {
@@ -79,7 +77,6 @@ Vue.component('blog-detail', {
                 return;
             }
             
-            // Call the comment service directly
             window.CommentService.createComment(this.$root, {
                 content: this.newComment.content,
                 parentCommentId: this.newComment.parentCommentId
@@ -89,10 +86,7 @@ Vue.component('blog-detail', {
             // Set the parent comment ID
             this.newComment.parentCommentId = commentId;
             
-            // Show the comment form
             this.showCommentForm = true;
-            
-            // Focus on the textarea
             setTimeout(() => {
                 const textarea = this.$el.querySelector('textarea');
                 if (textarea) {

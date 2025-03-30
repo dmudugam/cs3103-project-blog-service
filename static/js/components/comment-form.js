@@ -1,7 +1,5 @@
 /**
  * Comment Form Component
- * 
- * reusable component for submitting new comments and replying to existing comments.
  */
 Vue.component('comment-form', {
     props: {
@@ -14,21 +12,26 @@ Vue.component('comment-form', {
             default: false
         }
     },
+    
     data() {
         return {
             content: ''
         };
     },
+    
     computed: {
         isReply() {
             return this.parentCommentId !== null;
         },
+        
         submitLabel() {
             return this.isReply ? 'Reply' : 'Comment';
         }
     },
+    
     methods: {
         submitComment() {
+            // Prevent empty submissions
             if (!this.content.trim()) {
                 return;
             }
@@ -38,13 +41,15 @@ Vue.component('comment-form', {
                 parentCommentId: this.parentCommentId
             });
             
-            // Reset after submit
             this.content = '';
         },
+        
+        // Handle cancellation
         cancel() {
             this.$emit('cancel');
         }
     },
+    
     template: `
         <div class="comment-form">
             <form @submit.prevent="submitComment">

@@ -71,12 +71,18 @@ A full-featured blog service built with Flask and Vue.js that enables users to c
    cd cs3103-project-blog-service
    ```
 
-3. Install dependencies:
+3. Creating Certificates and Setting Up Permissions:
+   ```bash
+   chmod +x makeCert.sh
+   ./makeCert.sh
+   ```
+
+4. Install dependencies (If you do step 3, you can skip this):
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Generate or obtain SSL certificates:
+5. Generate or obtain SSL certificates (If you do step 3, you can skip this):
    ```bash
    # For development purposes only
    openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365

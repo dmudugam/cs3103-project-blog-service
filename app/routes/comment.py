@@ -41,7 +41,6 @@ class BlogCommentCreate(Resource):
         if not blog:
             return make_response(jsonify({'status': 'error', 'message': 'Blog not found'}), 404)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('content', type=str, required=True, help='Content is required')
         args = parser.parse_args()
@@ -56,14 +55,12 @@ class BlogCommentCreate(Resource):
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
-        # Create comment
         comment = sql_call_fetch_one('createComment', (content, user['userId'], blogId, None))
         
         # Get blog author for notification
         blog_author = sql_call_fetch_one('getUserById', (blog['userId'],))
         
         if blog_author and blog_author['email']:
-            # Check if author wants comment notifications
             prefs = sql_call_fetch_one('getUserNotificationPreferences', (blog_author['userId'],))
             if prefs and prefs['notifyOnComment']:
                 send_comment_notification(comment, blog['title'], user['username'], blog_author['email'])
@@ -86,22 +83,20 @@ class CommentUpdate(Resource):
         if not request.json:
             return make_response(jsonify({'status': 'error', 'message': 'No JSON data provided'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('content', type=str, required=True, help='Content is required')
         args = parser.parse_args()
         
-        # Sanitize content
+        # Sanitize
         content = sanitize_html(args['content'])
         
         if not content:
             return make_response(jsonify({'status': 'error', 'message': 'Content is required after sanitization'}), 400)
         
-        # Get user ID from session
+        # Get user ID
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
-        # Update comment
         comment = sql_call_fetch_one('updateComment', (commentId, content, user['userId']))
         
         if not comment:
@@ -114,11 +109,9 @@ class CommentDelete(Resource):
     @verification_required
     @ownership_required('comment')
     def delete(self, commentId):
-        # Get user ID from session
+        # Get user ID
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
-        
-        # Delete comment
         result = sql_call_fetch_one('deleteComment', (commentId, user['userId']))
         
         if not result or result['affectedRows'] == 0:
@@ -128,12 +121,11 @@ class CommentDelete(Resource):
 
 class CommentReplyList(Resource):
     def get(self, commentId):
-        # Check if comment exists
         comment = sql_call_fetch_one('getCommentById', (commentId,))
         if not comment:
             return make_response(jsonify({'status': 'error', 'message': 'Comment not found'}), 404)
         
-        # Get replies from database
+        # Get replies
         replies = sql_call_fetch_all('getCommentReplies', (commentId,))
         
         response = make_response(jsonify(replies), 200)
@@ -147,27 +139,24 @@ class CommentReplyCreate(Resource):
         if not request.json:
             return make_response(jsonify({'status': 'error', 'message': 'No JSON data provided'}), 400)
         
-        # Check if comment exists
         comment = sql_call_fetch_one('getCommentById', (commentId,))
         if not comment:
             return make_response(jsonify({'status': 'error', 'message': 'Comment not found'}), 404)
-        
-        # Parse request
+
         parser = reqparse.RequestParser()
         parser.add_argument('content', type=str, required=True, help='Content is required')
         args = parser.parse_args()
         
-        # Sanitize content
+        # Sanitiz
         content = sanitize_html(args['content'])
         
         if not content:
             return make_response(jsonify({'status': 'error', 'message': 'Content is required after sanitization'}), 400)
         
-        # Get user ID from session
+        # Get user ID
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
-        # Create reply
         reply = sql_call_fetch_one('createComment', (content, user['userId'], comment['blogId'], commentId))
         
         # Notify the original comment author
@@ -177,7 +166,6 @@ class CommentReplyCreate(Resource):
             # Check if author wants comment notifications
             prefs = sql_call_fetch_one('getUserNotificationPreferences', (comment_author['userId'],))
             if prefs and prefs['notifyOnComment']:
-                # Get blog title
                 blog = sql_call_fetch_one('getBlogById', (comment['blogId'],))
                 blog_title = blog['title'] if blog else "Unknown Blog"
                 

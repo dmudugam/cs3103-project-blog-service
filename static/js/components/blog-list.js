@@ -1,7 +1,5 @@
 /**
  * Blog List Component
- * 
- * Display a list of blog posts with title, author, and date.
  */
 Vue.component('blog-list', {
     props: {
@@ -22,33 +20,26 @@ Vue.component('blog-list', {
         formatDate(dateString) {
             return window.Formatters.formatDate(dateString);
         },
+        
         viewBlog(blogId) {
             this.$emit('view-blog', blogId);
         },
+
         loadMore(event) {
-            // Prevent default button behavior
             if (event) event.preventDefault();
-            
-            // Emit the load-more event
             this.$emit('load-more');
-            
-            // Scroll to the bottom of the page
             setTimeout(() => {
-                // Get the last blog item
-                const blogItems = document.querySelectorAll('.blog-item');
-                if (blogItems.length > 0) {
-                    // Get the position of the load more button
-                    const loadMoreBtn = document.querySelector('.blog-list .btn-outline-primary');
-                    if (loadMoreBtn) {
-                        loadMoreBtn.scrollIntoView({ behavior: 'smooth' });
-                    } else {
-                        window.scrollTo({
-                            top: document.body.scrollHeight,
-                            behavior: 'smooth'
-                        });
-                    }
+                const loadMoreBtn = document.querySelector('.blog-list .btn-outline-primary');
+                
+                if (loadMoreBtn) {
+                    loadMoreBtn.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    window.scrollTo({
+                        top: document.body.scrollHeight,
+                        behavior: 'smooth'
+                    });
                 }
-            }, 300); // Slightly longer delay to ensure DOM is updated
+            }, 300);
         }
     },
     template: `

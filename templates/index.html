@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UNB Blog Network: Connect & Create</title>
-    <!-- External CSS to help with layout and design -->
+    
+    <!-- External CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
+    
     <!-- Custom CSS -->
     <link rel="stylesheet" href="../static/css/styles.css"/>
+    
+    <!-- Vue.js style -->
     <style>
         [v-cloak] {
             display: none;
@@ -16,11 +20,19 @@
     </style>
 </head>
 <body>
+    <!-- Main Vue app container -->
     <div class="container-fluid" id="app" v-cloak>
+        <!-- Loading state -->
+        <div v-if="!appReady" class="text-center my-5">
+            <div class="spinner-border" role="status"></div>
+            <p>Loading...</p>
+        </div>
+        
+        <!-- Main application content -->
         <div v-if="appReady">
-            <!-- Header Section with UNB Logo -->
+            <!-- Header -->
             <div class="jumbotron jumbotron-fluid text-center">
-                <!-- Logo Container -->
+                <!-- Logo -->
                 <div class="logo-container">
                     <img src="../static/images/unb-logo.png" alt="UNB Logo" class="site-logo">
                 </div>
@@ -37,13 +49,14 @@
                     {{ notification.message }}
                 </div>
                 
-                <!-- Display user info and blog controls when logged in -->
+                <!-- Authentication Controls -->
                 <div v-if="!authenticated" class="auth-controls">
                     <button type="button" class="btn btn-outline-primary mr-2" @click="openLoginModal('ldap')">UNB Login</button>
                     <button type="button" class="btn btn-outline-info mr-2" @click="openLoginModal('local')">Blog Login</button>
                     <button type="button" class="btn btn-outline-success" @click="openRegisterModal()">Register</button>
                 </div>
                 
+                <!-- User Controls - Logged In -->
                 <div v-else class="auth-controls">
                     <span class="user-welcome mr-2">
                         Welcome, {{ username }}!
@@ -59,7 +72,7 @@
                     <button v-else-if="!verified" type="button" class="btn btn-sm btn-outline-warning mr-2" @click="requestEmailVerification">Verify Email</button>
                     <button v-else type="button" class="btn btn-sm btn-outline-secondary mr-2" @click="openEmailModal">Update Email</button>
                     
-                    <!-- Phone verification if SMS is enable -->
+                    <!-- Phone verification if SMS is enabled -->
                     <template v-if="smsEnabled">
                         <button v-if="!hasPhone" type="button" class="btn btn-sm btn-outline-primary mr-2" @click="openPhoneModal">Add Phone</button>
                         <button v-else-if="!mobileVerified" type="button" class="btn btn-sm btn-outline-warning mr-2" @click="requestMobileVerification">Verify Phone</button>
@@ -70,11 +83,23 @@
                     <button type="button" class="btn btn-sm btn-outline-info mr-2" @click="openNotificationPrefsModal">Notification Settings</button>
                     <button type="button" class="btn btn-sm btn-outline-primary mr-2" @click="getUserBlogs">My Blogs</button>
                     <button type="button" class="btn btn-sm btn-outline-success mr-2" @click="openCreateBlogModal">Create Blog</button>
+                    
+                    <!-- Logout Button -->
                     <button type="button" class="btn btn-sm btn-outline-danger" @click="logout">Logout</button>
+                </div>
+
+                <!-- Documentation Buttons - Always visible -->
+                <div class="mt-3 doc-buttons">
+                    <a href="/docs/openapi-spec.html" target="_blank" class="btn btn-sm btn-outline-info mr-2">
+                        <i class="fas fa-book mr-1"></i> API Docs
+                    </a>
+                    <a href="/docs/database_design.html" target="_blank" class="btn btn-sm btn-outline-info mr-2">
+                        <i class="fas fa-database mr-1"></i> DB Design
+                    </a>
                 </div>
             </div>
             
-            <!-- Blog List Section -->
+            <!-- Blog Section -->
             <div class="blogs-container">
                 <h2 class="text-center mb-4">Recent Blogs</h2>
                 
@@ -88,13 +113,14 @@
                 </blog-list>
             </div>
             
+            <!-- Modal Section -->
             <!-- Login Modal -->
             <modal v-if="showLoginModal" @close="showLoginModal = false" animation-type="zoom">
                 <template v-slot:header>
                     <h3>{{ loginForm.type === 'ldap' ? 'UNB Login' : 'Blog Login' }}</h3>
                 </template>
                 <template v-slot:body>
-                    <!-- Error message ig login wrong -->
+                    <!-- Error message -->
                     <div v-if="loginForm.error" class="alert alert-danger mb-3">
                         {{ loginForm.error }}
                     </div>
@@ -189,7 +215,8 @@
                 </template>
             </modal>
             
-            <!-- Update or add an email -->
+            <!-- Profile Modals -->
+            <!-- Email Update Modal -->
             <modal v-if="showEmailModal" @close="showEmailModal = false" animation-type="slide-top">
                 <template v-slot:header>
                     <h3>{{ hasEmail ? 'Update Email' : 'Add Email' }}</h3>
@@ -218,7 +245,7 @@
                 </template>
             </modal>
             
-            <!-- Add or update your phone number for SMS verification -->
+            <!-- Phone Update Modal -->
             <modal v-if="showPhoneModal" @close="showPhoneModal = false" animation-type="slide-top">
                 <template v-slot:header>
                     <h3>{{ hasPhone ? 'Update Phone Number' : 'Add Phone Number' }}</h3>
@@ -248,7 +275,7 @@
                 </template>
             </modal>
             
-            <!-- Notification Preferences -->
+            <!-- Notification Preferences Modal -->
             <modal v-if="showNotificationPrefsModal" @close="showNotificationPrefsModal = false" animation-type="zoom">
                 <template v-slot:header>
                     <h3>Notification Preferences</h3>
@@ -282,7 +309,8 @@
                 </template>
             </modal>
             
-            <!-- Email OTP Verification -->
+            <!-- Verification Modals -->
+            <!-- Email OTP Verification Modal -->
             <modal v-if="showEmailOtpModal" @close="handleEmailVerificationClose" animation-type="zoom">
                 <template v-slot:header>
                     <h3>Email Verification</h3>
@@ -316,7 +344,7 @@
                 </template>
             </modal>
             
-            <!-- Phone OTP Verification -->
+            <!-- Mobile OTP Verification Modal -->
             <modal v-if="showMobileOtpModal" @close="handleMobileVerificationClose" animation-type="zoom">
                 <template v-slot:header>
                     <h3>Mobile Verification</h3>
@@ -350,7 +378,8 @@
                 </template>
             </modal>
             
-            <!-- Creating Blog Modal -->
+            <!-- Blog Modals -->
+            <!-- Create Blog Modal -->
             <modal v-if="showCreateBlogModal" @close="showCreateBlogModal = false" animation-type="slide-top">
                 <template v-slot:header>
                     <h3>Create Blog</h3>
@@ -383,7 +412,7 @@
                 </template>
             </modal>
             
-            <!-- Editing Blog Modal -->
+            <!-- Edit Blog Modal -->
             <modal v-if="showEditBlogModal" @close="showEditBlogModal = false" animation-type="slide-right">
                 <template v-slot:header>
                     <h3>Edit Blog</h3>
@@ -417,7 +446,7 @@
                 </template>
             </modal>
             
-            <!-- Blog Details -->
+            <!-- Blog Details Modal -->
             <modal v-if="showBlogModal" @close="showBlogModal = false" animation-type="flip">
                 <template v-slot:header>
                     <div v-if="selectedBlog">
@@ -450,7 +479,7 @@
                 </template>
             </modal>
             
-            <!-- User Blogs -->
+            <!-- User Blogs Modal -->
             <modal v-if="showUserBlogsModal" @close="showUserBlogsModal = false" animation-type="slide-right">
                 <template v-slot:header>
                     <h3>My Blogs</h3>
@@ -469,7 +498,7 @@
                 </template>
             </modal>
             
-            <!-- Modal to use AI for writing or enhancing blog content -->
+            <!-- AI Helper Modal -->
             <modal v-if="showAiHelperModal" @close="showAiHelperModal = false" animation-type="zoom">
                 <template v-slot:header>
                     <h3>AI Writing Assistant</h3>
@@ -517,6 +546,7 @@
                 </template>
             </modal>
             
+            <!-- Password Reset Modals -->
             <!-- Forgot Password Modal -->
             <modal v-if="showForgotPasswordModal" @close="showForgotPasswordModal = false" animation-type="zoom">
                 <template v-slot:header>
@@ -533,7 +563,7 @@
                         {{ forgotPasswordForm.success }}
                     </div>
                     
-                    <!-- Step 1: Enter the Email Address -->
+                    <!-- Enter the Email Address -->
                     <form v-if="!forgotPasswordForm.otpSent && !forgotPasswordForm.success" @submit.prevent="requestPasswordReset">
                         <div class="form-group">
                             <label for="resetEmail">Email Address</label>
@@ -550,7 +580,7 @@
                         </div>
                     </form>
                     
-                    <!-- Step 2: Enter the OTP Code -->
+                    <!-- Enter the OTP Code -->
                     <form v-if="forgotPasswordForm.otpSent && !forgotPasswordForm.otpVerified && !forgotPasswordForm.success" @submit.prevent="verifyResetOTP">
                         <div class="form-group">
                             <label for="resetOTP">OTP Code</label>
@@ -567,7 +597,7 @@
                         </div>
                     </form>
                     
-                    <!-- Step 3: Reset Password -->
+                    <!-- Reset Password -->
                     <form v-if="forgotPasswordForm.otpVerified && !forgotPasswordForm.success" @submit.prevent="resetPassword">
                         <div class="form-group">
                             <label>Username</label>
@@ -675,13 +705,10 @@
                 </transition>
             </script>
         </div>
-        <div v-else class="text-center my-5">
-            <div class="spinner-border" role="status"></div>
-            <p>Loading...</p>
-        </div>
     </div>
     
-    <!-- External Scripts -->
+    <!-- Scripts -->
+    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>

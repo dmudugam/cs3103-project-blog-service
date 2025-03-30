@@ -8,13 +8,12 @@ from app.utils.decorators import login_required
 
 class UserList(Resource):
     def get(self):
-        # Parse query parameters
         parser = reqparse.RequestParser()
         parser.add_argument('limit', type=int, required=False, default=20, help='Maximum number of users to return')
         parser.add_argument('offset', type=int, required=False, default=0, help='Number of users to skip for pagination')
         args = parser.parse_args()
         
-        # Get users from database
+        # Get users
         users = sql_call_fetch_all('getUsers', (args['limit'], args['offset']))
         
         response = make_response(jsonify(users), 200)
@@ -37,25 +36,23 @@ class UserEmail(Resource):
         if not request.is_json:
             return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('email', type=str, required=True, help='Email is required')
         args = parser.parse_args()
         
-        # Sanitize inputs
+        # Sanitize
         email = sanitize_string(args['email'])
         
         if not email:
             return make_response(jsonify({'status': 'error', 'message': 'Email is required after sanitization'}), 400)
         
-        # Validate email format
+        # Validate email
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             return make_response(jsonify({'status': 'error', 'message': 'Invalid email format'}), 400)
         
-        # Get the current user
         username = session['username']
         
-        # Get user from session
+        # Get user
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
         if not user:
@@ -70,17 +67,14 @@ class UserEmail(Resource):
         if existing_email_user and existing_email_user['username'] != username:
             return make_response(jsonify({'status': 'error', 'message': 'Email address is already in use by another account'}), 400)
         
-        # Update users email
         updated_user = sql_call_fetch_one('updateUserEmail', (user['userId'], email))
         
         if not updated_user:
             return make_response(jsonify({'status': 'error', 'message': 'Failed to update email'}), 500)
         
-        # Generate OTP for verification
         from app.utils.helpers import generate_otp
         otp = generate_otp()
         
-        # Store OTP in verification table
         sql_call_fetch_one('createVerification', (updated_user['userId'], otp))
         
         # Send verification email with OTP
@@ -95,29 +89,26 @@ class UserPhone(Resource):
         if not request.json:
             return make_response(jsonify({'status': 'error', 'message': 'No JSON data provided'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('phone', type=str, required=True, help='Phone number is required')
         args = parser.parse_args()
         
-        # Sanitize phone
+        # Sanitize
         phone = sanitize_string(args['phone'])
         
         if not phone:
             return make_response(jsonify({'status': 'error', 'message': 'Phone number is required after sanitization'}), 400)
         
-        # Validate phone number format
+        # Validate phone number
         if not phone.startswith('+') or not phone[1:].isdigit():
-            return make_response(jsonify({'status': 'error', 'message': 'Phone number must be in E.164 format (e.g., +1234567890)'}), 400)
+            return make_response(jsonify({'status': 'error', 'message': 'Phone number must be in format (e.g., +1234567890)'}), 400)
         
-        # Get user from session
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
         if not user:
             return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
-        # Check if user has phone_number field
         if 'phone_number' not in user:
             return make_response(jsonify({
                 'status': 'error',
@@ -128,26 +119,23 @@ class UserPhone(Resource):
         if user.get('phone_number') and user['phone_number'] == phone:
             return make_response(jsonify({'status': 'error', 'message': 'The phone number is the same as your current one'}), 400)
         
-        # Update user's phone number
         updated_user = sql_call_fetch_one('updateUserPhone', (user['userId'], phone))
         
         if not updated_user:
             return make_response(jsonify({'status': 'error', 'message': 'Failed to update phone number'}), 500)
         
-        # Generate OTP for verification
         from app.utils.helpers import generate_otp
         otp = generate_otp()
         
-        # Store OTP in verification table
+        # Store OTP
         sql_call_fetch_one('createMobileVerification', (updated_user['userId'], otp))
         
-        # Check if SMS is enabled and try to send it
+        # Check if SMS is enabled
         from app.services.sms_service import send_verification_sms, is_sms_enabled
         sms_sent = False
         if is_sms_enabled():
             sms_sent = send_verification_sms(phone, updated_user['username'], otp)
-        
-        # Include SMS status in response
+
         response_data = {**updated_user, 'sms_sent': sms_sent}
         
         return make_response(jsonify(response_data), 200)
@@ -169,7 +157,7 @@ class UserBlogList(Resource):
             except ValueError:
                 return make_response(jsonify({'status': 'error', 'message': 'Invalid date format. Use YYYY-MM-DD'}), 400)
         
-        # Get blogs from database
+        # Get blogs
         blogs = sql_call_fetch_all('getBlogsByUserId', (userId, newer_than, limit, offset))
         
         response = make_response(jsonify(blogs), 200)
@@ -179,7 +167,7 @@ class UserBlogList(Resource):
 class UserNotificationPreferences(Resource):
     @login_required
     def get(self):
-        # Get user from session
+        # Get user
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
@@ -198,20 +186,19 @@ class UserNotificationPreferences(Resource):
         if not request.json:
             return make_response(jsonify({'status': 'error', 'message': 'No JSON data provided'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('notifyOnBlog', type=bool, required=True, help='notifyOnBlog is required')
         parser.add_argument('notifyOnComment', type=bool, required=True, help='notifyOnComment is required')
         args = parser.parse_args()
         
-        # Get user from session
+        # Get user
         username = session['username']
         user = sql_call_fetch_one('getUserByUsername', (username,))
         
         if not user:
             return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
-        # Update notification preferences
+        # Update notification preferenc
         prefs = sql_call_fetch_one('updateNotificationPreferences', (
             user['userId'], 
             args['notifyOnBlog'],

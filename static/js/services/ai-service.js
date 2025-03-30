@@ -1,4 +1,6 @@
-// AI services
+/**
+ * AI Service
+ */
 const AiService = {
     useAI(app) {
         if (!app.authenticated) {
@@ -13,7 +15,6 @@ const AiService = {
         
         let content = null;
         
-        // If in enhance mode, get content based on current context
         if (app.aiHelper.mode === 'enhance') {
             if (app.showCreateBlogModal) {
                 content = app.newBlog.content;
@@ -30,6 +31,7 @@ const AiService = {
         app.aiHelper.loading = true;
         app.aiHelper.error = null;
         
+        // Call AI API endpoint
         axios.post(`${app.baseURL}/ai/generate`, 
             JSON.stringify({
                 prompt: app.aiHelper.prompt,
@@ -45,10 +47,10 @@ const AiService = {
             }
         )
         .then(response => {
+            // Store generated content
             app.aiHelper.generatedContent = response.data.generatedContent;
             
-            // Ask user to use the AI content in blog if editing or creating
-
+            // Prompt user to apply content if in blog editing context
             if (app.showCreateBlogModal || app.showEditBlogModal) {
                 if (confirm("Would you like to apply the AI-generated content to your blog?")) {
                     this.applyAiContent(app);
@@ -65,6 +67,7 @@ const AiService = {
     },
     
     openAiHelperModal(app, mode = 'generate') {
+        // Verify authentication and verification status
         if (!app.authenticated) {
             app.showNotification('error', 'Please log in to use AI features');
             return;
@@ -82,21 +85,22 @@ const AiService = {
             error: null,
             generatedContent: ""
         };
-        
+
         app.showAiHelperModal = true;
     },
     
     applyAiContent(app) {
+        // Check if we have content to apply
         if (!app.aiHelper.generatedContent) {
             return;
         }
         
+        // Apply to appropriate form based on context
         if (app.showCreateBlogModal) {
             app.newBlog.content = app.aiHelper.generatedContent;
         } else if (app.showEditBlogModal) {
             app.editBlog.content = app.aiHelper.generatedContent;
         }
-        
         app.showAiHelperModal = false;
     }
 };

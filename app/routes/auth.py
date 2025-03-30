@@ -17,7 +17,6 @@ class UserRegistration(Resource):
         if not request.is_json:
             return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('username', type=str, required=True, help='Username is required')
         parser.add_argument('email', type=str, required=True, help='Email is required')
@@ -54,19 +53,16 @@ class UserRegistration(Resource):
         password_hash = hashlib.sha256((args['password'] + salt).encode()).hexdigest()
         
         try:
-            # Create user
             user = sql_call_fetch_one('createLocalUser', (username, email, password_hash, salt))
             
             if not user:
                 return make_response(jsonify({'status': 'error', 'message': 'Failed to create user'}), 500)
             
-            # Generate OTP for verification
             otp = generate_otp()
             
             # Store OTP in verification table
             sql_call_fetch_one('createVerification', (user['userId'], otp))
             
-            # Send verification email with OTP
             send_verification_email(email, username, otp)
             
             # Return success response
@@ -86,7 +82,6 @@ class AuthLogin(Resource):
         if not request.is_json:
             return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('username', type=str, required=True, help='Username is required')
         parser.add_argument('password', type=str, required=True, help='Password is required')
@@ -101,7 +96,6 @@ class AuthLogin(Resource):
             return make_response(jsonify({'status': 'error', 'message': 'Username is required after sanitization'}), 400)
         
         if login_type == 'local':
-            # Local user authentication
             user = sql_call_fetch_one('validateLocalUser', (username,))
             
             if not user or 'password_hash' not in user or 'password_salt' not in user:
@@ -117,22 +111,19 @@ class AuthLogin(Resource):
             session['username'] = username
             session['user_type'] = 'local'
             
-            # Check if user is verified via email
+            # Check if user is verified via EMAIL
             verified_result = sql_call_fetch_one('isUserVerified', (user['userId'],))
             is_verified = verified_result and verified_result.get('verified', 0) > 0
             
-            # Mobile verification
             try:
-                # Check if user is verified via mobile
+                # Check if user is verified via mOBILE
                 mobile_verified_result = sql_call_fetch_one('isMobileVerified', (user['userId'],))
                 is_mobile_verified = mobile_verified_result and mobile_verified_result.get('verified', 0) > 0
             except Exception:
                 is_mobile_verified = False
             
-            # Access for phone number
             has_phone = safe_get(user, 'phone_number') is not None and safe_get(user, 'phone_number', '') != ''
             
-            # Check if user has email
             has_email = user.get('email') is not None and user.get('email', '') != ''
             
             sms_enabled = is_sms_enabled()
@@ -180,22 +171,17 @@ class AuthLogin(Resource):
                 session['username'] = username
                 session['user_type'] = 'ldap'
                 
-                # Check if user is verified via email
                 verified_result = sql_call_fetch_one('isUserVerified', (user['userId'],))
                 is_verified = verified_result and verified_result.get('verified', 0) > 0
-                
-                # Access for mobile verification
+
                 try:
-                    # Check if user is verified via mobile
                     mobile_verified_result = sql_call_fetch_one('isMobileVerified', (user['userId'],))
                     is_mobile_verified = mobile_verified_result and mobile_verified_result.get('verified', 0) > 0
                 except Exception:
                     is_mobile_verified = False
                 
-                # Access for phone number
                 has_phone = safe_get(user, 'phone_number') is not None and safe_get(user, 'phone_number', '') != ''
                 
-                # Check if user has email
                 has_email = user.get('email') is not None and user.get('email', '') != ''
                 
                 sms_enabled = is_sms_enabled()
@@ -231,21 +217,17 @@ class AuthLogin(Resource):
             user = sql_call_fetch_one('getUserByUsername', (username,))
             
             if user:
-                # Check if user is verified via email
                 verified_result = sql_call_fetch_one('isUserVerified', (user['userId'],))
                 is_verified = verified_result and verified_result.get('verified', 0) > 0
 
                 try:
-                    # Check if user is verified via mobile
                     mobile_verified_result = sql_call_fetch_one('isMobileVerified', (user['userId'],))
                     is_mobile_verified = mobile_verified_result and mobile_verified_result.get('verified', 0) > 0
                 except Exception:
                     is_mobile_verified = False
                 
-                # Access for phone number
                 has_phone = safe_get(user, 'phone_number') is not None and safe_get(user, 'phone_number', '') != ''
                 
-                # Check if user has email
                 has_email = user.get('email') is not None and user.get('email', '') != ''
                 
                 sms_enabled = is_sms_enabled()
@@ -281,13 +263,11 @@ class VerifyOTP(Resource):
         if not request.is_json:
             return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('userId', type=int, required=True, help='User ID is required')
         parser.add_argument('otp', type=str, required=True, help='OTP is required')
         args = parser.parse_args()
         
-        # Verify OTP
         result = sql_call_fetch_one('verifyOTP', (args['userId'], args['otp']))
         
         if result and result['success']:
@@ -298,7 +278,6 @@ class VerifyOTP(Resource):
 # Request email OTP
 class RequestOTP(Resource):
     def post(self):
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('userId', type=int, required=False, help='User ID is required')
         parser.add_argument('updatingEmail', type=bool, required=False, default=False)
@@ -306,7 +285,6 @@ class RequestOTP(Resource):
         
         user = None
         
-        # Try to get user from the session if logged in
         if 'username' in session:
             username = session['username']
             user = sql_call_fetch_one('getUserByUsername', (username,))
@@ -318,13 +296,11 @@ class RequestOTP(Resource):
         if not user:
             return make_response(jsonify({'status': 'error', 'message': 'User not found'}), 404)
         
-        # Check if user has an email
         if not user.get('email'):
             return make_response(jsonify({'status': 'error', 'message': 'Please add an email address first'}), 400)
         
         # Only check verification status if were not updating email
         if not args['updatingEmail']:
-            # Check if user is already verified
             verified_result = sql_call_fetch_one('isUserVerified', (user['userId'],))
             is_verified = verified_result and verified_result.get('verified', 0) > 0
             
@@ -342,18 +318,15 @@ class RequestOTP(Resource):
                 print(f"No pending email found or unexpected structure: {pending_result}")
         except Exception as e:
             print(f"Error checking pending email: {e}")
-        
-        # Use pending email if available, otherwise use current email
+
         email_to_use = pending_email if pending_email else user.get('email')
         print(f"Using email for OTP: {email_to_use}")
         
-        # Generate new OTP
         otp = generate_otp()
         
         # Update verification record
         sql_call_fetch_one('createVerification', (user['userId'], otp))
         
-        # Send verification email to the appropriate email address
         send_verification_email(email_to_use, user['username'], otp)
         
         return make_response(jsonify({
@@ -367,14 +340,11 @@ class VerifyMobileOTP(Resource):
     def post(self):
         if not request.is_json:
             return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
-        
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('userId', type=int, required=True, help='User ID is required')
         parser.add_argument('otp', type=str, required=True, help='OTP is required')
         args = parser.parse_args()
-        
-        # Verify OTP
+
         try:
             result = sql_call_fetch_one('verifyMobileOTP', (args['userId'], args['otp']))
             
@@ -388,7 +358,6 @@ class VerifyMobileOTP(Resource):
 # Request mobile OTP
 class RequestMobileOTP(Resource):
     def post(self):
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('userId', type=int, required=False, help='User ID is required')
         parser.add_argument('updatingPhone', type=bool, required=False, default=False)
@@ -402,7 +371,6 @@ class RequestMobileOTP(Resource):
             username = session['username']
             user = sql_call_fetch_one('getUserByUsername', (username,))
         
-        # If not found in session or no session, try using the userId parameter
         if not user and args.get('userId'):
             user = sql_call_fetch_one('getUserById', (args['userId'],))
         
@@ -414,15 +382,11 @@ class RequestMobileOTP(Resource):
         if args.get('phone'):
             phone_to_use = args['phone']
             
-            # Update the user's phone in the database
             try:
-                # Update phone number in the database
                 sql_call_fetch_one('updateUserPhone', (user['userId'], phone_to_use))
                 print(f"Updated phone for user {user['userId']} to {phone_to_use}")
             except Exception as e:
                 print(f"Error updating phone: {e}")
-        
-        # Then check for pending phone or existing phone
         if not phone_to_use:
             # First check if there's a pending phone number update for this user
             pending_phone = None
@@ -434,7 +398,6 @@ class RequestMobileOTP(Resource):
             except Exception as e:
                 print(f"Error checking pending phone: {e}")
             
-            # If we have a pending phone, use that; otherwise check if the user has a phone in their profile
             if pending_phone:
                 phone_to_use = pending_phone
             elif safe_get(user, 'phone_number'):
@@ -443,7 +406,6 @@ class RequestMobileOTP(Resource):
         if not phone_to_use:
             return make_response(jsonify({'status': 'error', 'message': 'No phone number found. Please add a phone number first.'}), 400)
         
-        # Only check verification status if we're not updating phone
         if not args['updatingPhone']:
             try:
                 # Check if user is already verified
@@ -456,11 +418,9 @@ class RequestMobileOTP(Resource):
                 print(f"Error checking mobile verification: {e}")
                 pass
         
-        # Make sure SMS is enabled
         if not is_sms_enabled():
             return make_response(jsonify({'status': 'error', 'message': 'SMS functionality is not enabled on the server'}), 400)
         
-        # Generate new OTP
         otp = generate_otp()
         
         try:
@@ -470,7 +430,6 @@ class RequestMobileOTP(Resource):
             print(f"Error creating mobile verification: {e}")
             return make_response(jsonify({'status': 'error', 'message': f'Mobile verification database error: {str(e)}'}), 400)
         
-        # Send verification SMS to the appropriate phone number
         print(f"Sending OTP to phone: {phone_to_use}")
         sms_sent = send_verification_sms(phone_to_use, user['username'], otp)
         
@@ -478,7 +437,8 @@ class RequestMobileOTP(Resource):
             return make_response(jsonify({
                 'status': 'success', 
                 'message': 'Verification OTP sent to phone',
-                'userId': user['userId']
+                'userId': user['userId'],
+                'phoneUsed': phone_to_use
             }), 200)
         else:
             return make_response(jsonify({'status': 'error', 'message': 'Failed to send SMS. Please try again or contact support.'}), 500)
@@ -488,7 +448,6 @@ class RequestPasswordReset(Resource):
         if not request.is_json:
             return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('email', type=str, required=True, help='Email is required')
         args = parser.parse_args()
@@ -509,13 +468,10 @@ class RequestPasswordReset(Resource):
         # Always return success
         if user and user['user_type'] == 'local': 
             try:
-                # Generate a 6-digit OTP
                 otp = generate_otp()
                 
-                # Store OTP in database
                 sql_call_fetch_one('createPasswordResetOTP', (user['userId'], otp))
-                
-                # Send reset email with OTP
+            
                 send_password_reset_otp(email, user['username'], otp)
             except Exception as e:
                 print(f"Password reset process error: {e}")
@@ -530,7 +486,6 @@ class CompletePasswordReset(Resource):
         if not request.is_json:
             return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('otp', type=str, required=True, help='Reset OTP is required')
         parser.add_argument('password', type=str, required=True, help='New password is required')
@@ -572,7 +527,6 @@ class CompletePasswordReset(Resource):
         salt = uuid.uuid4().hex
         password_hash = hashlib.sha256((args['password'] + salt).encode()).hexdigest()
         
-        # Update the password and remove the reset OTP
         result = sql_call_fetch_one('resetPasswordWithOTP', (otp, password_hash, salt))
         
         if not result or not result.get('success'):
@@ -592,18 +546,15 @@ class VerifyResetOTP(Resource):
         if not request.is_json:
             return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('otp', type=str, required=True, help='Reset OTP is required')
         args = parser.parse_args()
-        
-        # Sanitize inputs
+
         otp = sanitize_string(args['otp'])
         
         if not otp:
             return make_response(jsonify({'status': 'error', 'message': 'Reset OTP is required'}), 400)
         
-        # Verify OTP
         user = sql_call_fetch_one('verifyResetOTP', (otp,))
         
         if not user:

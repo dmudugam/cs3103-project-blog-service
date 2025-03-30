@@ -10,7 +10,7 @@ except ImportError:
     print("Warning: Twilio package not installed. SMS functionality will be disabled.", file=sys.stderr)
 
 def get_twilio_client():
-    """Get Twilio client if available"""
+    # Get the client if available
     if not TWILIO_AVAILABLE:
         return None
     
@@ -25,7 +25,6 @@ def get_twilio_client():
         return None
 
 def send_verification_sms(phone_number, username, otp):
-    """Send verification SMS with OTP to user"""
     if not phone_number:
         print("Cannot send verification SMS: No phone number provided", file=sys.stderr)
         return False
@@ -48,5 +47,4 @@ def send_verification_sms(phone_number, username, otp):
         return False
 
 def is_sms_enabled():
-    """Check if SMS functionality is enabled"""
     return TWILIO_AVAILABLE and get_twilio_client() is not None

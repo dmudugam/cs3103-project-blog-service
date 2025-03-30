@@ -1,12 +1,9 @@
--- ===================================================================
+
 -- DATABASE CONFIGURATION
--- ===================================================================
 SET NAMES utf8mb4;
 ALTER DATABASE CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
--- ===================================================================
--- CLEANUP (DROP EXISTING TABLES)
--- ===================================================================
+-- CLEANUP
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS blogs;
 DROP TABLE IF EXISTS verification;
@@ -19,11 +16,9 @@ DROP TABLE IF EXISTS pending_email_changes;
 DROP TABLE IF EXISTS pending_phone_changes;
 DROP TABLE IF EXISTS users;
 
--- ===================================================================
 -- TABLE DEFINITIONS
--- ===================================================================
 
--- Core user table
+-- UsEr tables
 CREATE TABLE users(
     userId int auto_increment,
     user_type ENUM('ldap', 'local') NOT NULL DEFAULT 'ldap',
@@ -132,10 +127,7 @@ CREATE TABLE comments(
     constraint fk_blog foreign key(blogId) references blogs(blogId) on delete cascade on update restrict,
     constraint fk_parent_comment foreign key(parentCommentId) references comments(commentId) on delete cascade on update restrict
 );
-
--- ===================================================================
 -- USER MANAGEMENT PROCEDURES
--- ===================================================================
 
 -- User retrieval procedures
 DROP PROCEDURE IF EXISTS getUserById;
@@ -943,21 +935,5 @@ BEGIN
     DELETE FROM comments WHERE commentId = commentIdIn AND userId = userIdIn;
     
     SELECT ROW_COUNT() as affectedRows;
-END //
-DELIMITER ;
-
--- MAINTENANCE PROCEDURES
-
-DROP PROCEDURE IF EXISTS cleanupExpiredVerifications;
-DELIMITER //
-CREATE PROCEDURE cleanupExpiredVerifications()
-BEGIN
-    -- Delete expired verification tokens
-    DELETE FROM verification WHERE expiresAt < NOW();
-    DELETE FROM mobile_verification WHERE expiresAt < NOW();
-    
-    -- Delete expired pending changes
-    DELETE FROM pending_email_changes WHERE expiresAt < NOW();
-    DELETE FROM pending_phone_changes WHERE expiresAt < NOW();
 END //
 DELIMITER ;

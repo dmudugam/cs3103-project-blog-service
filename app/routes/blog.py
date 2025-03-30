@@ -14,7 +14,6 @@ class BlogList(Resource):
         limit = request.args.get('limit', default=20, type=int)
         offset = request.args.get('offset', default=0, type=int)
         
-        # Convert date string to date object if provided
         if newer_than:
             try:
                 newer_than = datetime.strptime(newer_than, '%Y-%m-%d').date()

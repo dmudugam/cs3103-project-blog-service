@@ -1,19 +1,24 @@
+/**
+ * User Service
+ */
 const UserService = {
+
     updateEmail(app) {
-        // Clear previous error
         app.emailForm.error = null;
         
+        // Validate email
         if (!app.emailForm.email) {
             app.emailForm.error = "Email is required";
             return;
         }
         
-        // Validate email format
+        // Validate email
         if (!window.FormValidators.isValidEmail(app.emailForm.email)) {
             app.emailForm.error = "Please enter a valid email address";
             return;
         }
         
+        // Submit request to update email
         app.loading.auth = true;
         axios.put(`${app.baseURL}/users/email`, 
             JSON.stringify({
@@ -29,16 +34,7 @@ const UserService = {
         )
         .then(response => {
             app.showEmailModal = false;
-            
-            // Not update main user email yet - just store pending email
-            // app.userEmail = response.data.email;
-            // app.hasEmail = true;
-            // app.verified = false;
-            
-            // Store user ID for OTP verification
             app.emailOtpForm.userId = response.data.userId;
-            
-            // Show email OTP verification modal
             app.showEmailOtpModal = true;
             
             const action = app.emailForm.email === app.userEmail ? "updated" : "added";
@@ -50,7 +46,6 @@ const UserService = {
             if (error.response && error.response.data && error.response.data.message) {
                 message = error.response.data.message;
             }
-            // Display error within the modal
             app.emailForm.error = message;
         })
         .finally(() => {
@@ -59,20 +54,21 @@ const UserService = {
     },
     
     updatePhone(app) {
-        // Clear previous error
         app.phoneForm.error = null;
         
+        // Validate phone
         if (!app.phoneForm.phone) {
             app.phoneForm.error = "Phone number is required";
             return;
         }
         
-        // Validate phone number format
+        // Validate phone
         if (!window.FormValidators.isValidPhone(app.phoneForm.phone)) {
             app.phoneForm.error = "Phone number must be in format (e.g., +1234567890)";
             return;
         }
         
+        // Submit request to update phone
         app.loading.auth = true;
         axios.put(`${app.baseURL}/users/phone`, 
             JSON.stringify({
@@ -89,24 +85,20 @@ const UserService = {
         .then(response => {
             app.showPhoneModal = false;
             
-            // Update user phone data
-            app.userPhone = response.data.phone_number;
-            app.hasPhone = true;
+
+            app.userPhone = response.data.pendingPhone || response.data.phone_number || app.phoneForm.phone;
+            app.hasPhone = true; 
             app.mobileVerified = false;
             
-            // Save to state
-            if (app.userPhone) {
-                localStorage.setItem('userPhone', app.userPhone);
-                localStorage.setItem('userId', app.userId);
-            }
+            localStorage.setItem('userPhone', app.userPhone);
+            localStorage.setItem('userId', app.userId);
             
-            // Store user ID for OTP verification
             app.mobileOtpForm.userId = response.data.userId;
             
+            // Check if SMS was successfully sent
             const smsSent = response.data.sms_sent;
             
             if (smsSent) {
-                // Show mobile OTP verification modal
                 app.showMobileOtpModal = true;
                 
                 const action = app.phoneForm.phone === app.userPhone ? "updated" : "added";
@@ -121,7 +113,6 @@ const UserService = {
                 .catch(error => {
                     console.error("Error refreshing app state:", error);
                 });
-                
             }
         })
         .catch(error => {
@@ -130,14 +121,13 @@ const UserService = {
             if (error.response && error.response.data && error.response.data.message) {
                 message = error.response.data.message;
             }
-            // Display error within the modal
             app.phoneForm.error = message;
         })
         .finally(() => {
             app.loading.auth = false;
         });
     },
-    
+
     getNotificationPreferences(app) {
         if (!app.authenticated) {
             return;
@@ -161,7 +151,6 @@ const UserService = {
     },
     
     updateNotificationPreferences(app) {
-        // Clear previous error
         app.notificationPrefsForm.error = null;
         
         app.loading.auth = true;
@@ -188,7 +177,6 @@ const UserService = {
             if (error.response && error.response.data && error.response.data.message) {
                 message = error.response.data.message;
             }
-            // Display error within the modal
             app.notificationPrefsForm.error = message;
         })
         .finally(() => {
@@ -197,7 +185,6 @@ const UserService = {
     },
     
     refreshUserData(app) {
-        // Make a separate call to get user data 
         axios.get(`${app.baseURL}/auth/login`, {
             headers: {
                 'Accept': 'application/json'

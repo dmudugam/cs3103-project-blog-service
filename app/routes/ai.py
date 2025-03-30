@@ -11,7 +11,6 @@ class GeminiAI(Resource):
         if not request.is_json:
             return make_response(jsonify({'status': 'error', 'message': 'Request must be JSON'}), 400)
         
-        # Parse request
         parser = reqparse.RequestParser()
         parser.add_argument('prompt', type=str, required=True, help='Prompt is required')
         parser.add_argument('mode', type=str, required=False, default='generate', 
@@ -20,7 +19,6 @@ class GeminiAI(Resource):
                            help='Content to enhance (required if mode is enhance)')
         args = parser.parse_args()
         
-        # Validate input
         if args['mode'] == 'enhance' and not args['content']:
             return make_response(jsonify({
                 'status': 'error', 

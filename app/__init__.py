@@ -8,11 +8,9 @@ from datetime import datetime, date, timedelta
 import os
 import sys
 
-# Import routes aftr app initialization
 def create_app():
     app = Flask(__name__, static_folder='../static', template_folder='../templates')
     
-    # Load configuration
     app.config.from_pyfile(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'settings.py'))
     
     # Session configuration
@@ -27,10 +25,8 @@ def create_app():
     # Initialize CORS (because browsers are paranoid and need therapy about sharing :P)
     CORS(app, resources={r"/*": {"origins": f"https://{app.config['APP_HOST']}", "supports_credentials": True}})
     
-    # Initialize session
     Session(app)
     
-    # Format date
     class JSONEncoder(json.JSONEncoder):
         def default(self, obj):
             if isinstance(obj, (datetime, date)):
@@ -39,10 +35,8 @@ def create_app():
     
     app.json_encoder = JSONEncoder
     
-    # Initialize API
     api = Api(app)
     
-    # Import and register error handlers
     from app.utils.error_handlers import register_error_handlers
     register_error_handlers(app)
     
@@ -52,7 +46,6 @@ def create_app():
     
     @app.after_request
     def after_request(response):
-        """Ensure all responses have appropriate headers"""
         # Set content type for JSON responses
         if not response.headers.get('Content-Type'):
             response.headers['Content-Type'] = 'application/json'
@@ -70,12 +63,9 @@ def create_app():
     def serve_index():
         return send_from_directory('../templates', 'index.html')
     
-    @app.route('/api/docs')
-    def api_docs():
-        return render_template('swagger.html')
-
-    @app.route('/api/docs/openapi.yaml')
-    def api_spec():
-        return send_from_directory('../docs', 'openapi-spec.yaml', mimetype='text/yaml')
+    @app.route('/docs/<path:filename>')
+    def serve_docs(filename):
+        docs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs')
+        return send_from_directory(docs_dir, filename)
     
     return app
