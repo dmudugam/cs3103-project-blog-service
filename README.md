@@ -67,25 +67,25 @@ A full-featured blog service built with Flask and Vue.js that enables users to c
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/dmudugam/cs3103-project-blog-service
-   cd cs3103-project-blog-service
+   $ git clone https://github.com/dmudugam/cs3103-project-blog-service
+   $ cd cs3103-project-blog-service
    ```
 
 3. Creating Certificates and Setting Up Permissions:
    ```bash
-   chmod +x makeCert.sh
-   ./makeCert.sh
+   $ chmod +x setup.sh
+   $ ./setup.sh
    ```
 
 4. Install dependencies (If you do step 3, you can skip this):
    ```bash
-   pip install -r requirements.txt
+   $ pip install -r requirements.txt
    ```
 
 5. Generate or obtain SSL certificates (If you do step 3, you can skip this):
    ```bash
    # For development purposes only
-   openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365
+   $ openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365
    ```
 
 ## Configuration
@@ -126,12 +126,12 @@ After cloning the repository, you need to update the configuration settings:
 
 1. Initialize the database:
    ```bash
-   mysql -u your_db_user -p your_db_name < database/schema.sql
+   $ mysql -u your_db_user -p your_db_name < database/schema.sql
    ```
 
 2. Start the application:
    ```bash
-   python run.py
+   $ python run.py
    ```
 
 3. Access the application:
