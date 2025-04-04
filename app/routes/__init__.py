@@ -5,6 +5,7 @@ def register_routes(api):
     from app.routes.comment import BlogCommentList, BlogCommentCreate, CommentDetail, CommentUpdate, CommentDelete, CommentReplyList, CommentReplyCreate 
     from app.routes.user import UserList, UserDetail, UserEmail, UserPhone, UserBlogList, UserNotificationPreferences
     from app.routes.ai import GeminiAI
+    from app.routes.config import AppConfig
     
     # Auth routes
     api.add_resource(UserRegistration, '/auth/register')
@@ -17,6 +18,9 @@ def register_routes(api):
     api.add_resource(RequestPasswordReset, '/auth/forgot-password')
     api.add_resource(VerifyResetOTP, '/auth/verify-reset-otp')
     api.add_resource(CompletePasswordReset, '/auth/reset-password')
+
+    # Config routes
+    api.add_resource(AppConfig, '/api/config')
     
     # Blog routes
     api.add_resource(BlogList, '/blogs-api')

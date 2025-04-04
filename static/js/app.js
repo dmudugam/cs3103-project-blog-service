@@ -158,15 +158,19 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         
         created() {
-            // First check auth, then set appReady to true, and handle any errors
-            this.checkAuth()
+            this.loadConfig()
+                .then(() => {
+                   
+                    return this.checkAuth();
+                })
                 .then(() => {
                     this.appReady = true;
+                    this.getBlogs();
                 })
                 .catch(() => {
                     this.appReady = true;
+                    this.getBlogs();
                 });
-            this.getBlogs();
             
             const urlParams = new URLSearchParams(window.location.search);
             const resetToken = urlParams.get('token');
@@ -178,6 +182,19 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         
         methods: {
+            loadConfig() {
+                return axios.get('/api/config')
+                    .then(response => {
+                        // Server Config
+                        this.baseURL = response.data.baseURL;
+                        return response;
+                    })
+                    .catch(error => {
+                        console.error('Failed to load configuration, using defaults:', error);
+                        // Default Values
+                        return Promise.resolve();
+                    });
+            },
             checkAuth() {
                 return window.AuthService.checkAuth(this);
             },
@@ -356,7 +373,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const savedPhone = localStorage.getItem('userPhone');
                     
                     if (savedUserId && savedUserId == this.userId && savedPhone) {
-                        console.log("Using saved phone number for form:", savedPhone);
                         this.phoneForm.phone = savedPhone;
                         this.userPhone = savedPhone;
                     } else {
@@ -433,12 +449,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
                 
                 this.$nextTick(() => {
-                    console.log("Opening forgot password modal...");
                     this.showForgotPasswordModal = true;
                     
                     setTimeout(() => {
                         if (!this.showForgotPasswordModal) {
-                            console.log("Forcing modal open with timeout");
                             this.showForgotPasswordModal = true;
                             this.debugModalState();
                         }

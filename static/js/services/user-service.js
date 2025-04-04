@@ -105,13 +105,11 @@ const UserService = {
                 app.showNotification("success", `Phone number ${action}! Please verify your phone with the OTP sent via SMS.`);
             } else {
                 // If SMS couldn't be sent
-                app.showNotification("warning", "Phone number updated, but SMS delivery is currently unavailable. Please try mobile verification later.");
+                app.showNotification("warning", "Phone number is not on the whitelist. Please reach out to support for assistance.");
                 app.checkAuth()
                 .then(() => {
-                    console.log("App state refreshed after phone update without SMS");
                 })
                 .catch(error => {
-                    console.error("Error refreshing app state:", error);
                 });
             }
         })
