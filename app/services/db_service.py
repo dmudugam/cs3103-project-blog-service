@@ -19,9 +19,13 @@ def sql_call_fetch_one(sql, params=()):
     connection = get_connection()
     try:
         with connection.cursor() as cursor:
-            cursor.callproc(sql, params)  # MySQL uses callproc for stored procedures
+            cursor.callproc(sql, params)
             result = cursor.fetchone()
+            connection.commit()  # CRITICAL: Commit the transaction
             return result
+    except Exception as e:
+        connection.rollback()
+        raise e
     finally:
         connection.close()
 
@@ -30,8 +34,12 @@ def sql_call_fetch_all(sql, params=()):
     connection = get_connection()
     try:
         with connection.cursor() as cursor:
-            cursor.callproc(sql, params)  # MySQL uses callproc for stored procedures
+            cursor.callproc(sql, params)
             result = cursor.fetchall()
+            connection.commit()  # CRITICAL: Commit the transaction
             return result
+    except Exception as e:
+        connection.rollback()
+        raise e
     finally:
         connection.close()
