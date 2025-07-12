@@ -53,28 +53,30 @@ class UserRegistration(Resource):
         password_hash = hashlib.sha256((args['password'] + salt).encode()).hexdigest()
         
         try:
-            # MySQL version (old)
-            # sql = "CALL createLocalUser(%s, %s, %s, %s)"
-            
-            # PostgreSQL version (new)
+            print(f"Creating user: {username}, {email}")
             user = sql_call_fetch_one('createLocalUser', (username, email, password_hash, salt))
+            print(f"User created: {user}")
+            
             if not user:
                 return make_response(jsonify({'status': 'error', 'message': 'Failed to create user'}), 500)
             
-            # Fix for case sensitivity issue - PostgreSQL returns lowercase column names
             user_id = user.get('userid', None)  # Try lowercase first
             if user_id is None:
                 user_id = user.get('userId', None)  # Try with camelCase
             
+            print(f"User ID extracted: {user_id}, Keys available: {list(user.keys())}")
+            
             if user_id is None:
-                # For debugging, print the keys available
                 available_keys = list(user.keys()) if user else []
                 return make_response(jsonify({'status': 'error', 'message': f'User ID not found. Available keys: {available_keys}'}), 500)
             
             otp = generate_otp()
+            print(f"Generated OTP for user {user_id}")
             
             # Store OTP in verification table
+            print(f"Creating verification for user {user_id}")
             sql_call_fetch_one('createVerification', (user_id, otp))
+            print(f"Verification created successfully")
             
             send_verification_email(email, username, otp)
             
