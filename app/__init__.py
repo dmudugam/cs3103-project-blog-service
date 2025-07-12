@@ -17,9 +17,11 @@ def create_app():
     app.secret_key = app.config['SECRET_KEY']
     app.config['SESSION_TYPE'] = 'filesystem'
     app.config['SESSION_COOKIE_NAME'] = 'peanutButter'
-    app.config['SESSION_COOKIE_DOMAIN'] = app.config['APP_HOST']
+    # Remove this line or set it to None to use the application's domain
+    # app.config['SESSION_COOKIE_DOMAIN'] = app.config['APP_HOST'] 
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
     
     # Initialize CORS (because browsers are paranoid and need therapy about sharing :P)

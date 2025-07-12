@@ -279,6 +279,7 @@ class AuthLogin(Resource):
                 }
                 return make_response(jsonify(response), 200)
         
+        print("No session found")
         return make_response(jsonify({'status': 'error', 'message': 'Not authenticated'}), 401)
 
 class AuthLogout(Resource):
@@ -290,16 +291,19 @@ class AuthLogout(Resource):
         # Create a response
         response = make_response(jsonify({'status': 'success', 'message': 'Logout successful'}), 200)
         
+        # Import current_app to access configuration
+        from flask import current_app
+        
         # Explicitly delete the cookie with the same parameters used to set it
         response.set_cookie(
             'peanutButter',
             value='',
-            max_age=0,  # Expire immediately
-            expires=0,   # Expire immediately
+            max_age=0,
+            expires=0,
             secure=True,
             httponly=True,
-            samesite='None',
-            domain=app.config['SESSION_COOKIE_DOMAIN']
+            samesite='None'
+            # Remove the domain parameter or set it correctly
         )
         
         return response
