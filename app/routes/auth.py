@@ -57,9 +57,7 @@ class UserRegistration(Resource):
             # sql = "CALL createLocalUser(%s, %s, %s, %s)"
             
             # PostgreSQL version (new)
-            sql = "SELECT * FROM createLocalUser(%s, %s, %s, %s)"
             user = sql_call_fetch_one('createLocalUser', (username, email, password_hash, salt))
-            
             if not user:
                 return make_response(jsonify({'status': 'error', 'message': 'Failed to create user'}), 500)
             
