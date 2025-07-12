@@ -22,6 +22,7 @@ def sql_call_fetch_one(sql, params=()):
             sql_query = f"SELECT * FROM {sql}({param_placeholders})"
             cursor.execute(sql_query, params)
             result = cursor.fetchone()
+            connection.commit()  # Commit the transaction
             return result
     finally:
         connection.close()
