@@ -3,10 +3,12 @@ APP_HOST = 'cs3103.cs.unb.ca'
 APP_PORT = 8006
 APP_DEBUG = True
 
-DB_HOST = 'localhost'
-DB_USER = '<<ADD_DB_USER>>'
-DB_PASSWD = '<<ADD_DB_PASSWORD>>'
-DB_DATABASE = '<<ADD_DATABASE>>'
+# PostgreSQL database settings for Render
+DB_HOST = 'dpg-d1os4tbipnbc73fck51g-a.virginia-postgres.render.com'
+DB_USER = 'dineth'
+DB_PASSWD = 'eBtmejYbH7iTA50cYar7QtrHffxG1fFj'
+DB_DATABASE = 'blogservice'
+DB_PORT = 5432
 
 SECRET_KEY = '<<ADD_SECRET_KEY>>'
 

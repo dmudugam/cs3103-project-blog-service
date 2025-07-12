@@ -1,17 +1,26 @@
-import pymysql.cursors
+import psycopg2
+import psycopg2.extras
 from flask import current_app, abort, request
 import sys
+import os
 
 def get_db_connection():
     try:
-        connection = pymysql.connect(
-            host=current_app.config['DB_HOST'],
-            user=current_app.config['DB_USER'],
-            password=current_app.config['DB_PASSWD'],
-            database=current_app.config['DB_DATABASE'],
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor
-        )
+        # Use DATABASE_URL from Render if available
+        if os.environ.get('DATABASE_URL'):
+            connection = psycopg2.connect(
+                os.environ.get('DATABASE_URL'),
+                cursor_factory=psycopg2.extras.RealDictCursor
+            )
+        else:
+            connection = psycopg2.connect(
+                host=current_app.config['DB_HOST'],
+                user=current_app.config['DB_USER'],
+                password=current_app.config['DB_PASSWD'],
+                dbname=current_app.config['DB_DATABASE'],
+                port=current_app.config['DB_PORT'],
+                cursor_factory=psycopg2.extras.RealDictCursor
+            )
         return connection
     except Exception as e:
         print(f"Database connection error: {e}", file=sys.stderr)
@@ -58,9 +67,9 @@ def sql_call_fetch_one(proc_name, args=None):
         row = cursor.fetchone()
         db_connection.commit()
         return row
-    except pymysql.err.IntegrityError as e:
-        error_code = e.args[0]
-        error_msg = e.args[1]
+    except psycopg2.IntegrityError as e:
+        error_code = e.pgcode
+        error_msg = e.pgerror
         print(f"Database integrity error: {error_code}, {error_msg}", file=sys.stderr)
         raise e
     except Exception as e:
