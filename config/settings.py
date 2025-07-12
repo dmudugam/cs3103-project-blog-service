@@ -1,7 +1,11 @@
 #!/usr/bin/env python
-APP_HOST = 'cs3103.cs.unb.ca'
-APP_PORT = 8006
-APP_DEBUG = True
+import os
+
+# Use environment variables for Render deployment
+# Default to development values if not in production
+APP_HOST = os.environ.get('HOST', '0.0.0.0')  # Use 0.0.0.0 to listen on all interfaces
+APP_PORT = int(os.environ.get('PORT', 10000))  # Render sets PORT environment variable
+APP_DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 # PostgreSQL database settings for Render
 DB_HOST = 'dpg-d1os4tbipnbc73fck51g-a.virginia-postgres.render.com'
