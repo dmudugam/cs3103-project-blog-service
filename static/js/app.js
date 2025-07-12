@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
         el: "#app",
         
         data: {
-            baseURL: "https://cs3103.cs.unb.ca:8006",
+            baseURL: window.location.origin,
             appReady: false,
             authenticated: false,
             verified: false,
