@@ -1,141 +1,136 @@
-
 -- DATABASE CONFIGURATION
-SET NAMES utf8mb4;
-ALTER DATABASE CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- CLEANUP
-DROP TABLE IF EXISTS comments;
-DROP TABLE IF EXISTS blogs;
-DROP TABLE IF EXISTS verification;
-DROP TABLE IF EXISTS mobile_verification;
-DROP TABLE IF EXISTS verified_users;
-DROP TABLE IF EXISTS mobile_verified_users;
-DROP TABLE IF EXISTS notification_preferences;
-DROP TABLE IF EXISTS password_reset;
-DROP TABLE IF EXISTS pending_email_changes;
-DROP TABLE IF EXISTS pending_phone_changes;
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS comments CASCADE;
+DROP TABLE IF EXISTS blogs CASCADE;
+DROP TABLE IF EXISTS verification CASCADE;
+DROP TABLE IF EXISTS mobile_verification CASCADE;
+DROP TABLE IF EXISTS verified_users CASCADE;
+DROP TABLE IF EXISTS mobile_verified_users CASCADE;
+DROP TABLE IF EXISTS notification_preferences CASCADE;
+DROP TABLE IF EXISTS password_reset CASCADE;
+DROP TABLE IF EXISTS pending_email_changes CASCADE;
+DROP TABLE IF EXISTS pending_phone_changes CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+-- Create user type enum
+CREATE TYPE user_type AS ENUM ('ldap', 'local');
 
 -- TABLE DEFINITIONS
 
--- UsEr tables
+-- User tables
 CREATE TABLE users(
-    userId int auto_increment,
-    user_type ENUM('ldap', 'local') NOT NULL DEFAULT 'ldap',
-    username varchar(25) not null,
-    email varchar(100) null,
+    userId SERIAL PRIMARY KEY,
+    user_type user_type NOT NULL DEFAULT 'ldap',
+    username VARCHAR(25) NOT NULL UNIQUE,
+    email VARCHAR(100) UNIQUE NULL,
     password_hash VARCHAR(128) NULL,
     password_salt VARCHAR(32) NULL,
     phone_number VARCHAR(20) NULL,
-    joinDate timestamp default current_timestamp,
-    primary key(userId),
-    unique key(username),
-    unique key(email)
+    joinDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Verification related tables
 CREATE TABLE verified_users(
-    userId int not null,
-    verifiedAt timestamp default current_timestamp,
-    primary key(userId),
-    constraint fk_verified_user foreign key(userId) references users(userId) on delete cascade on update restrict
+    userId INTEGER NOT NULL PRIMARY KEY,
+    verifiedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );
 
 CREATE TABLE mobile_verified_users(
-    userId int not null,
-    verifiedAt timestamp default current_timestamp,
-    primary key(userId),
-    constraint fk_mobile_verified_user foreign key(userId) references users(userId) on delete cascade on update restrict
+    userId INTEGER NOT NULL PRIMARY KEY,
+    verifiedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );
 
 CREATE TABLE verification(
-    userId int not null,
-    verificationToken varchar(64) not null,
-    createdAt timestamp default current_timestamp,
-    expiresAt timestamp default (current_timestamp + interval 15 minute),
-    primary key(userId),
-    unique key(verificationToken),
-    constraint fk_verification_user foreign key(userId) references users(userId) on delete cascade on update restrict
+    userId INTEGER NOT NULL PRIMARY KEY,
+    verificationToken VARCHAR(64) NOT NULL UNIQUE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expiresAt TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '15 minutes'),
+    FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );
 
 CREATE TABLE mobile_verification(
-    userId int not null,
-    verificationToken varchar(6) not null,
-    createdAt timestamp default current_timestamp,
-    expiresAt timestamp default (current_timestamp + interval 15 minute),
-    primary key(userId),
-    constraint fk_mobile_verification_user foreign key(userId) references users(userId) on delete cascade on update restrict
+    userId INTEGER NOT NULL PRIMARY KEY,
+    verificationToken VARCHAR(6) NOT NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expiresAt TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '15 minutes'),
+    FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );
 
 -- Pending verification changes
 CREATE TABLE pending_email_changes (
-    userId INT PRIMARY KEY,
+    userId INTEGER PRIMARY KEY,
     newEmail VARCHAR(100) NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expiresAt TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL 24 HOUR),
+    expiresAt TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '24 hours'),
     FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );
 
 CREATE TABLE pending_phone_changes (
-    userId INT PRIMARY KEY,
+    userId INTEGER PRIMARY KEY,
     newPhone VARCHAR(20) NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expiresAt TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL 24 HOUR),
+    expiresAt TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '24 hours'),
     FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );
 
 -- User preferences
 CREATE TABLE notification_preferences(
-    userId int not null,
-    notifyOnBlog boolean default true,
-    notifyOnComment boolean default true,
-    primary key(userId),
-    constraint fk_notification_prefs foreign key(userId) references users(userId) on delete cascade on update restrict
+    userId INTEGER NOT NULL PRIMARY KEY,
+    notifyOnBlog BOOLEAN DEFAULT TRUE,
+    notifyOnComment BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );
 
 -- Password reset
 CREATE TABLE password_reset (
-    userId int not null,
-    resetOTP varchar(6) not null,
-    createdAt timestamp default current_timestamp,
-    expiresAt timestamp default (current_timestamp + interval 1 hour),
-    primary key(userId),
-    unique key(resetOTP),
-    constraint fk_password_reset_user foreign key(userId) references users(userId) on delete cascade on update restrict
+    userId INTEGER NOT NULL PRIMARY KEY,
+    resetOTP VARCHAR(6) NOT NULL UNIQUE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expiresAt TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '1 hour'),
+    FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );
 
 -- Content tables
 CREATE TABLE blogs(
-    blogId int auto_increment,
-    title longtext not null,
-    content longtext not null,
-    dateCreated timestamp default current_timestamp,
-    userId int not null,
-    primary key(blogId),
-    constraint fk_blog_creator foreign key(userId) references users(userId) on delete cascade on update restrict
+    blogId SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    dateCreated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    userId INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );
 
 CREATE TABLE comments(
-    commentId int auto_increment,
-    content longtext not null,
-    dateCreated timestamp default current_timestamp,
-    blogId int not null,
-    userId int not null,
-    parentCommentId int,
-    primary key(commentId),
-    constraint fk_comment_creator foreign key(userId) references users(userId) on delete cascade on update restrict, 
-    constraint fk_blog foreign key(blogId) references blogs(blogId) on delete cascade on update restrict,
-    constraint fk_parent_comment foreign key(parentCommentId) references comments(commentId) on delete cascade on update restrict
+    commentId SERIAL PRIMARY KEY,
+    content TEXT NOT NULL,
+    dateCreated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    blogId INTEGER NOT NULL,
+    userId INTEGER NOT NULL,
+    parentCommentId INTEGER NULL,
+    FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE,
+    FOREIGN KEY (blogId) REFERENCES blogs(blogId) ON DELETE CASCADE,
+    FOREIGN KEY (parentCommentId) REFERENCES comments(commentId) ON DELETE CASCADE
 );
+
 -- USER MANAGEMENT PROCEDURES
 
 -- User retrieval procedures
-DROP PROCEDURE IF EXISTS getUserById;
-DELIMITER //
-CREATE PROCEDURE getUserById(
-    userIdIn INT
-)
+CREATE OR REPLACE FUNCTION getUserById(userIdIn INTEGER)
+RETURNS TABLE(
+    userId INTEGER, 
+    username VARCHAR(25),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    joinDate TIMESTAMP,
+    user_type user_type,
+    verified BOOLEAN,
+    mobile_verified BOOLEAN
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         u.userId, 
         u.username, 
@@ -143,21 +138,28 @@ BEGIN
         u.phone_number,
         u.joinDate,
         u.user_type,
-        IF(vu.userId IS NOT NULL, TRUE, FALSE) AS verified,
-        IF(mvu.userId IS NOT NULL, TRUE, FALSE) AS mobile_verified
+        CASE WHEN vu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS verified,
+        CASE WHEN mvu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS mobile_verified
     FROM users u
     LEFT JOIN verified_users vu ON u.userId = vu.userId
     LEFT JOIN mobile_verified_users mvu ON u.userId = mvu.userId
     WHERE u.userId = userIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS getUserByUsername;
-DELIMITER //
-CREATE PROCEDURE getUserByUsername(
-    usernameIn varchar(25)
-)
+CREATE OR REPLACE FUNCTION getUserByUsername(usernameIn VARCHAR(25))
+RETURNS TABLE(
+    userId INTEGER, 
+    username VARCHAR(25),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    joinDate TIMESTAMP,
+    user_type user_type,
+    verified BOOLEAN,
+    mobile_verified BOOLEAN
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         u.userId, 
         u.username, 
@@ -165,21 +167,28 @@ BEGIN
         u.phone_number,
         u.joinDate,
         u.user_type,
-        IF(vu.userId IS NOT NULL, TRUE, FALSE) AS verified,
-        IF(mvu.userId IS NOT NULL, TRUE, FALSE) AS mobile_verified
+        CASE WHEN vu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS verified,
+        CASE WHEN mvu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS mobile_verified
     FROM users u
     LEFT JOIN verified_users vu ON u.userId = vu.userId
     LEFT JOIN mobile_verified_users mvu ON u.userId = mvu.userId
     WHERE u.username = usernameIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS getUserByEmail;
-DELIMITER //
-CREATE PROCEDURE getUserByEmail(
-    emailIn varchar(100)
-)
+CREATE OR REPLACE FUNCTION getUserByEmail(emailIn VARCHAR(100))
+RETURNS TABLE(
+    userId INTEGER, 
+    username VARCHAR(25),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    joinDate TIMESTAMP,
+    user_type user_type,
+    verified BOOLEAN,
+    mobile_verified BOOLEAN
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         u.userId, 
         u.username, 
@@ -187,22 +196,28 @@ BEGIN
         u.phone_number,
         u.joinDate,
         u.user_type,
-        IF(vu.userId IS NOT NULL, TRUE, FALSE) AS verified,
-        IF(mvu.userId IS NOT NULL, TRUE, FALSE) AS mobile_verified
+        CASE WHEN vu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS verified,
+        CASE WHEN mvu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS mobile_verified
     FROM users u
     LEFT JOIN verified_users vu ON u.userId = vu.userId
     LEFT JOIN mobile_verified_users mvu ON u.userId = mvu.userId
     WHERE u.email = emailIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS getUsers;
-DELIMITER //
-CREATE PROCEDURE getUsers(
-    limitIn INT,
-    offsetIn INT
-)
+CREATE OR REPLACE FUNCTION getUsers(limitIn INTEGER, offsetIn INTEGER)
+RETURNS TABLE(
+    userId INTEGER, 
+    username VARCHAR(25),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    joinDate TIMESTAMP,
+    user_type user_type,
+    verified BOOLEAN,
+    mobile_verified BOOLEAN
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         u.userId, 
         u.username, 
@@ -210,87 +225,126 @@ BEGIN
         u.phone_number,
         u.joinDate,
         u.user_type,
-        IF(vu.userId IS NOT NULL, TRUE, FALSE) AS verified,
-        IF(mvu.userId IS NOT NULL, TRUE, FALSE) AS mobile_verified
+        CASE WHEN vu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS verified,
+        CASE WHEN mvu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS mobile_verified
     FROM users u
     LEFT JOIN verified_users vu ON u.userId = vu.userId
     LEFT JOIN mobile_verified_users mvu ON u.userId = mvu.userId
     ORDER BY u.joinDate DESC
     LIMIT limitIn OFFSET offsetIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
 -- User creation procedures
-DROP PROCEDURE IF EXISTS createLdapUser;
-DELIMITER //
-CREATE PROCEDURE createLdapUser(
-    usernameIn varchar(25)
-)
+CREATE OR REPLACE FUNCTION createLdapUser(usernameIn VARCHAR(25))
+RETURNS TABLE(
+    userId INTEGER, 
+    username VARCHAR(25),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    joinDate TIMESTAMP,
+    user_type VARCHAR(4),
+    verified BOOLEAN,
+    mobile_verified BOOLEAN
+) AS $$
+DECLARE
+    new_id INTEGER;
+    rows_affected INTEGER;
 BEGIN
-    INSERT IGNORE INTO users (username, user_type) 
-    VALUES(usernameIn, 'ldap');
+    -- Insert if not exists
+    INSERT INTO users (username, user_type) 
+    VALUES(usernameIn, 'ldap')
+    ON CONFLICT (username) DO NOTHING
+    RETURNING users.userId INTO new_id;
+    
+    GET DIAGNOSTICS rows_affected = ROW_COUNT;
     
     -- Insert default notification preferences if this is a new user
-    IF ROW_COUNT() > 0 THEN
+    IF rows_affected > 0 THEN
         INSERT INTO notification_preferences (userId)
-        VALUES (LAST_INSERT_ID());
+        VALUES (new_id);
+    ELSE
+        -- Get the existing user ID if no insert happened
+        SELECT userId INTO new_id FROM users WHERE username = usernameIn;
     END IF;
     
+    RETURN QUERY
     SELECT 
         u.userId, 
         u.username, 
         u.email, 
         u.phone_number,
         u.joinDate,
-        'ldap' as user_type,
-        IF(vu.userId IS NOT NULL, TRUE, FALSE) AS verified,
-        IF(mvu.userId IS NOT NULL, TRUE, FALSE) AS mobile_verified
+        'ldap'::VARCHAR(4) as user_type,
+        CASE WHEN vu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS verified,
+        CASE WHEN mvu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS mobile_verified
     FROM users u
     LEFT JOIN verified_users vu ON u.userId = vu.userId
     LEFT JOIN mobile_verified_users mvu ON u.userId = mvu.userId
     WHERE u.username = usernameIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS createLocalUser;
-DELIMITER //
-CREATE PROCEDURE createLocalUser(
+CREATE OR REPLACE FUNCTION createLocalUser(
     usernameIn VARCHAR(25),
     emailIn VARCHAR(100),
     passwordHashIn VARCHAR(128),
     passwordSaltIn VARCHAR(32)
 )
+RETURNS TABLE(
+    userId INTEGER, 
+    username VARCHAR(25),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    joinDate TIMESTAMP,
+    user_type VARCHAR(5),
+    verified BOOLEAN,
+    mobile_verified BOOLEAN
+) AS $$
+DECLARE
+    new_id INTEGER;
 BEGIN
     INSERT INTO users (username, user_type, email, password_hash, password_salt) 
-    VALUES(usernameIn, 'local', emailIn, passwordHashIn, passwordSaltIn);
+    VALUES(usernameIn, 'local', emailIn, passwordHashIn, passwordSaltIn)
+    RETURNING userId INTO new_id;
     
     -- Insert default notification preferences for the new user
     INSERT INTO notification_preferences (userId)
-    VALUES (LAST_INSERT_ID());
+    VALUES (new_id);
     
+    RETURN QUERY
     SELECT 
         u.userId, 
         u.username, 
         u.email, 
         u.phone_number,
         u.joinDate,
-        'local' as user_type,
-        IF(vu.userId IS NOT NULL, TRUE, FALSE) AS verified,
-        IF(mvu.userId IS NOT NULL, TRUE, FALSE) AS mobile_verified
+        'local'::VARCHAR(5) as user_type,
+        CASE WHEN vu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS verified,
+        CASE WHEN mvu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS mobile_verified
     FROM users u
     LEFT JOIN verified_users vu ON u.userId = vu.userId
     LEFT JOIN mobile_verified_users mvu ON u.userId = mvu.userId
-    WHERE u.userId = LAST_INSERT_ID();
-END //
-DELIMITER ;
+    WHERE u.userId = new_id;
+END;
+$$ LANGUAGE plpgsql;
 
 -- User authentication
-DROP PROCEDURE IF EXISTS validateLocalUser;
-DELIMITER //
-CREATE PROCEDURE validateLocalUser(
-    usernameIn VARCHAR(25)
-)
+CREATE OR REPLACE FUNCTION validateLocalUser(usernameIn VARCHAR(25))
+RETURNS TABLE(
+    userId INTEGER, 
+    username VARCHAR(25),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    password_hash VARCHAR(128),
+    password_salt VARCHAR(32),
+    joinDate TIMESTAMP,
+    user_type VARCHAR(5),
+    verified BOOLEAN,
+    mobile_verified BOOLEAN
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         u.userId, 
         u.username, 
@@ -299,23 +353,32 @@ BEGIN
         u.password_hash,
         u.password_salt,
         u.joinDate,
-        'local' as user_type,
-        IF(vu.userId IS NOT NULL, TRUE, FALSE) AS verified,
-        IF(mvu.userId IS NOT NULL, TRUE, FALSE) AS mobile_verified
+        'local'::VARCHAR(5) as user_type,
+        CASE WHEN vu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS verified,
+        CASE WHEN mvu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS mobile_verified
     FROM users u
     LEFT JOIN verified_users vu ON u.userId = vu.userId
     LEFT JOIN mobile_verified_users mvu ON u.userId = mvu.userId
     WHERE u.username = usernameIn AND u.user_type = 'local';
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
 -- User profile update procedures
-DROP PROCEDURE IF EXISTS updateUserEmail;
-DELIMITER //
-CREATE PROCEDURE updateUserEmail(
+CREATE OR REPLACE FUNCTION updateUserEmail(
     userIdIn int,
     emailIn varchar(100)
 )
+RETURNS TABLE(
+    userId INTEGER, 
+    username VARCHAR(25),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    joinDate TIMESTAMP,
+    user_type user_type,
+    verified BOOLEAN,
+    mobile_verified BOOLEAN,
+    pendingVerification BOOLEAN
+) AS $$
 BEGIN
     -- Store new email in pending changes table instead of updating directly
     INSERT INTO pending_email_changes (userId, newEmail)
@@ -323,9 +386,10 @@ BEGIN
     ON DUPLICATE KEY UPDATE 
         newEmail = emailIn,
         createdAt = CURRENT_TIMESTAMP,
-        expiresAt = (CURRENT_TIMESTAMP + INTERVAL 24 HOUR);
+        expiresAt = (CURRENT_TIMESTAMP + INTERVAL '24 hours');
     
     -- Return user information without changing verification status
+    RETURN QUERY
     SELECT 
         u.userId, 
         u.username, 
@@ -334,22 +398,31 @@ BEGIN
         u.phone_number,
         u.joinDate,
         u.user_type,
-        IF(vu.userId IS NOT NULL, TRUE, FALSE) AS verified,
-        IF(mvu.userId IS NOT NULL, TRUE, FALSE) AS mobile_verified,
+        CASE WHEN vu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS verified,
+        CASE WHEN mvu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS mobile_verified,
         TRUE as pendingVerification
     FROM users u
     LEFT JOIN verified_users vu ON u.userId = vu.userId
     LEFT JOIN mobile_verified_users mvu ON u.userId = mvu.userId
     WHERE u.userId = userIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS updateUserPhone;
-DELIMITER //
-CREATE PROCEDURE updateUserPhone(
+CREATE OR REPLACE FUNCTION updateUserPhone(
     userIdIn int,
     phoneIn varchar(20)
 )
+RETURNS TABLE(
+    userId INTEGER, 
+    username VARCHAR(25),
+    email VARCHAR(100),
+    phone_number VARCHAR(20),
+    joinDate TIMESTAMP,
+    user_type user_type,
+    verified BOOLEAN,
+    mobile_verified BOOLEAN,
+    pendingVerification BOOLEAN
+) AS $$
 BEGIN
     -- Store new phone in pending changes instead of updating directly
     INSERT INTO pending_phone_changes (userId, newPhone)
@@ -357,9 +430,10 @@ BEGIN
     ON DUPLICATE KEY UPDATE 
         newPhone = phoneIn,
         createdAt = CURRENT_TIMESTAMP,
-        expiresAt = (CURRENT_TIMESTAMP + INTERVAL 24 HOUR);
+        expiresAt = (CURRENT_TIMESTAMP + INTERVAL '24 hours');
     
     -- Return user information without changing verification status
+    RETURN QUERY
     SELECT 
         u.userId, 
         u.username, 
@@ -368,60 +442,66 @@ BEGIN
         phoneIn as pendingPhone,
         u.joinDate,
         u.user_type,
-        IF(vu.userId IS NOT NULL, TRUE, FALSE) AS verified,
-        IF(mvu.userId IS NOT NULL, TRUE, FALSE) AS mobile_verified,
+        CASE WHEN vu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS verified,
+        CASE WHEN mvu.userId IS NOT NULL THEN TRUE ELSE FALSE END AS mobile_verified,
         TRUE as pendingVerification
     FROM users u
     LEFT JOIN verified_users vu ON u.userId = vu.userId
     LEFT JOIN mobile_verified_users mvu ON u.userId = mvu.userId
     WHERE u.userId = userIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
 -- USER NOTIFICATION PREFERENCES
 
-DROP PROCEDURE IF EXISTS getUserNotificationPreferences;
-DELIMITER //
-CREATE PROCEDURE getUserNotificationPreferences(
-    userIdIn INT
-)
+CREATE OR REPLACE FUNCTION getUserNotificationPreferences(userIdIn INT)
+RETURNS TABLE(
+    userId INTEGER,
+    notifyOnBlog BOOLEAN,
+    notifyOnComment BOOLEAN
+) AS $$
 BEGIN
     -- Insert default preferences if none exist
-    INSERT IGNORE INTO notification_preferences (userId)
-    VALUES (userIdIn);
+    INSERT INTO notification_preferences (userId)
+    VALUES (userIdIn)
+    ON CONFLICT (userId) DO NOTHING;
     
+    RETURN QUERY
     SELECT * FROM notification_preferences
     WHERE userId = userIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS updateNotificationPreferences;
-DELIMITER //
-CREATE PROCEDURE updateNotificationPreferences(
+CREATE OR REPLACE FUNCTION updateNotificationPreferences(
     userIdIn INT,
     notifyOnBlogIn BOOLEAN,
     notifyOnCommentIn BOOLEAN
 )
+RETURNS TABLE(
+    userId INTEGER,
+    notifyOnBlog BOOLEAN,
+    notifyOnComment BOOLEAN
+) AS $$
 BEGIN
     INSERT INTO notification_preferences (userId, notifyOnBlog, notifyOnComment)
     VALUES (userIdIn, notifyOnBlogIn, notifyOnCommentIn)
-    ON DUPLICATE KEY UPDATE
+    ON CONFLICT (userId) DO UPDATE SET
         notifyOnBlog = notifyOnBlogIn,
         notifyOnComment = notifyOnCommentIn;
         
+    RETURN QUERY
     SELECT * FROM notification_preferences
     WHERE userId = userIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
 -- EMAIL VERIFICATION PROCEDURES
 
-DROP PROCEDURE IF EXISTS createVerification;
-DELIMITER //
-CREATE PROCEDURE createVerification(
+CREATE OR REPLACE FUNCTION createVerification(
     userIdIn int,
     verificationTokenIn varchar(64)
 )
+RETURNS VOID AS $$
 BEGIN
     -- Delete any existing verification for this user
     DELETE FROM verification WHERE userId = userIdIn;
@@ -429,29 +509,32 @@ BEGIN
     -- Create new verification
     INSERT INTO verification (userId, verificationToken) 
     VALUES(userIdIn, verificationTokenIn);
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS isUserVerified;
-DELIMITER //
-CREATE PROCEDURE isUserVerified(userIdIn INT)
+CREATE OR REPLACE FUNCTION isUserVerified(userIdIn INT)
+RETURNS TABLE(verified BIGINT) AS $$
 BEGIN
+    RETURN QUERY
     SELECT COUNT(*) as verified 
     FROM verified_users 
     WHERE userId = userIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS verifyOTP;
-DELIMITER //
-CREATE PROCEDURE verifyOTP(
+CREATE OR REPLACE FUNCTION verifyOTP(
     userIdIn INT,
     otpIn VARCHAR(64)
 )
+RETURNS TABLE(
+    success BOOLEAN,
+    userId INTEGER,
+    updated_email VARCHAR(100)
+) AS $$
+DECLARE
+    foundUserId INT;
+    pendingEmail VARCHAR(100);
 BEGIN
-    DECLARE foundUserId INT;
-    DECLARE pendingEmail VARCHAR(100);
-    
     -- Verify the token is valid
     SELECT v.userId INTO foundUserId
     FROM verification v
@@ -479,38 +562,38 @@ BEGIN
         END IF;
         
         -- Add to verified users
-        INSERT IGNORE INTO verified_users (userId)
-        VALUES (foundUserId);
+        INSERT INTO verified_users (userId)
+        VALUES (foundUserId)
+        ON CONFLICT (userId) DO NOTHING;
         
         -- Remove verification record
         DELETE FROM verification 
         WHERE userId = userIdIn;
         
-        SELECT TRUE as success, foundUserId, pendingEmail as updated_email;
+        RETURN QUERY
+        SELECT TRUE as success, foundUserId, pendingEmail;
     ELSE
-        SELECT FALSE as success, NULL as userId, NULL as updated_email;
+        RETURN QUERY
+        SELECT FALSE as success, NULL::INTEGER as userId, NULL::VARCHAR(100) as updated_email;
     END IF;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS getPendingEmail;
-DELIMITER //
-CREATE PROCEDURE getPendingEmail(
-    userIdIn INT
-)
+CREATE OR REPLACE FUNCTION getPendingEmail(userIdIn INT)
+RETURNS TABLE(newEmail VARCHAR(100)) AS $$
 BEGIN
-    SELECT newEmail FROM pending_email_changes WHERE userId = userIdIn;
-END //
-DELIMITER ;
+    RETURN QUERY
+    SELECT pec.newEmail FROM pending_email_changes pec WHERE userId = userIdIn;
+END;
+$$ LANGUAGE plpgsql;
 
 -- MOBILE VERIFICATION PROCEDURES
 
-DROP PROCEDURE IF EXISTS createMobileVerification;
-DELIMITER //
-CREATE PROCEDURE createMobileVerification(
+CREATE OR REPLACE FUNCTION createMobileVerification(
     userIdIn int,
     verificationTokenIn varchar(6)
 )
+RETURNS VOID AS $$
 BEGIN
     -- Delete any existing verification for this user
     DELETE FROM mobile_verification WHERE userId = userIdIn;
@@ -518,29 +601,32 @@ BEGIN
     -- Create new verification
     INSERT INTO mobile_verification (userId, verificationToken) 
     VALUES(userIdIn, verificationTokenIn);
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS isMobileVerified;
-DELIMITER //
-CREATE PROCEDURE isMobileVerified(userIdIn INT)
+CREATE OR REPLACE FUNCTION isMobileVerified(userIdIn INT)
+RETURNS TABLE(verified BIGINT) AS $$
 BEGIN
+    RETURN QUERY
     SELECT COUNT(*) as verified 
     FROM mobile_verified_users 
     WHERE userId = userIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS verifyMobileOTP;
-DELIMITER //
-CREATE PROCEDURE verifyMobileOTP(
+CREATE OR REPLACE FUNCTION verifyMobileOTP(
     userIdIn INT,
     otpIn VARCHAR(6)
 )
+RETURNS TABLE(
+    success BOOLEAN,
+    userId INTEGER,
+    updated_phone VARCHAR(20)
+) AS $$
+DECLARE
+    foundUserId INT;
+    pendingPhone VARCHAR(20);
 BEGIN
-    DECLARE foundUserId INT;
-    DECLARE pendingPhone VARCHAR(20);
-    
     -- Verify the token is valid
     SELECT v.userId INTO foundUserId
     FROM mobile_verification v
@@ -568,38 +654,42 @@ BEGIN
         END IF;
         
         -- Mark as verified regardless of whether there was a pending phone
-        INSERT IGNORE INTO mobile_verified_users (userId)
-        VALUES (foundUserId);
+        INSERT INTO mobile_verified_users (userId)
+        VALUES (foundUserId)
+        ON CONFLICT (userId) DO NOTHING;
         
         -- Remove verification record
         DELETE FROM mobile_verification 
         WHERE userId = userIdIn;
         
-        SELECT TRUE as success, foundUserId as userId, pendingPhone as updated_phone;
+        RETURN QUERY
+        SELECT TRUE as success, foundUserId as userId, pendingPhone;
     ELSE
-        SELECT FALSE as success, NULL as userId, NULL as updated_phone;
+        RETURN QUERY
+        SELECT FALSE as success, NULL::INTEGER as userId, NULL::VARCHAR(20) as updated_phone;
     END IF;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS getPendingPhone;
-DELIMITER //
-CREATE PROCEDURE getPendingPhone(
-    userIdIn INT
-)
+CREATE OR REPLACE FUNCTION getPendingPhone(userIdIn INT)
+RETURNS TABLE(newPhone VARCHAR(20)) AS $$
 BEGIN
-    SELECT newPhone FROM pending_phone_changes WHERE userId = userIdIn;
-END //
-DELIMITER ;
+    RETURN QUERY
+    SELECT ppc.newPhone FROM pending_phone_changes ppc WHERE userId = userIdIn;
+END;
+$$ LANGUAGE plpgsql;
 
 -- PASSWORD RESET PROCEDURES
 
-DROP PROCEDURE IF EXISTS createPasswordResetOTP;
-DELIMITER //
-CREATE PROCEDURE createPasswordResetOTP(
+CREATE OR REPLACE FUNCTION createPasswordResetOTP(
     userIdIn int,
     otpIn varchar(6)
 )
+RETURNS TABLE(
+    userId INTEGER,
+    username VARCHAR(25),
+    email VARCHAR(100)
+) AS $$
 BEGIN
     -- Delete any existing reset OTP for this user
     DELETE FROM password_reset WHERE userId = userIdIn;
@@ -609,71 +699,85 @@ BEGIN
     VALUES(userIdIn, otpIn);
     
     -- Return user info
+    RETURN QUERY
     SELECT u.userId, u.username, u.email
     FROM users u
     WHERE u.userId = userIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS verifyResetOTP;
-DELIMITER //
-CREATE PROCEDURE verifyResetOTP(
-    otpIn varchar(6)
-)
+CREATE OR REPLACE FUNCTION verifyResetOTP(otpIn varchar(6))
+RETURNS TABLE(
+    userId INTEGER,
+    username VARCHAR(25),
+    email VARCHAR(100)
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT u.userId, u.username, u.email 
     FROM password_reset pr
     JOIN users u ON pr.userId = u.userId
     WHERE pr.resetOTP = otpIn
     AND pr.expiresAt > NOW();
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS resetPasswordWithOTP;
-DELIMITER //
-CREATE PROCEDURE resetPasswordWithOTP(
+CREATE OR REPLACE FUNCTION resetPasswordWithOTP(
     otpIn varchar(6),
     passwordHashIn VARCHAR(128),
     passwordSaltIn VARCHAR(32)
 )
+RETURNS TABLE(
+    success BOOLEAN,
+    userId INTEGER
+) AS $$
+DECLARE
+    user_id INT;
 BEGIN
-    DECLARE userId INT;
-    
     -- Get user ID from reset OTP
-    SELECT pr.userId INTO userId
+    SELECT pr.userId INTO user_id
     FROM password_reset pr
     WHERE pr.resetOTP = otpIn
     AND pr.expiresAt > NOW();
     
     -- If valid OTP found
-    IF userId IS NOT NULL THEN
+    IF user_id IS NOT NULL THEN
         -- Update password
         UPDATE users
         SET password_hash = passwordHashIn,
             password_salt = passwordSaltIn
-        WHERE userId = userId;
+        WHERE userId = user_id;
         
         -- Remove reset record
-        DELETE FROM password_reset WHERE userId = userId;
+        DELETE FROM password_reset WHERE userId = user_id;
         
-        SELECT TRUE as success, userId;
+        RETURN QUERY
+        SELECT TRUE as success, user_id;
     ELSE
-        SELECT FALSE as success, NULL as userId;
+        RETURN QUERY
+        SELECT FALSE as success, NULL::INTEGER as userId;
     END IF;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
 -- BLOG MANAGEMENT PROCEDURES
 
-DROP PROCEDURE IF EXISTS getBlogs;
-DELIMITER //
-CREATE PROCEDURE getBlogs(
+CREATE OR REPLACE FUNCTION getBlogs(
     newerThanIn DATE,
     authorIn VARCHAR(25),
     limitIn INT,
     offsetIn INT
 )
+RETURNS TABLE(
+    blogId INTEGER,
+    title TEXT,
+    content TEXT,
+    date TIMESTAMP,
+    userId INTEGER,
+    author VARCHAR(25)
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         b.blogId,
         b.title,
@@ -688,15 +792,20 @@ BEGIN
         AND (authorIn IS NULL OR u.username = authorIn)
     ORDER BY b.dateCreated DESC
     LIMIT limitIn OFFSET offsetIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS getBlogById;
-DELIMITER //
-CREATE PROCEDURE getBlogById(
-    blogIdIn INT
-)
+CREATE OR REPLACE FUNCTION getBlogById(blogIdIn INT)
+RETURNS TABLE(
+    blogId INTEGER,
+    title TEXT,
+    content TEXT,
+    date TIMESTAMP,
+    userId INTEGER,
+    author VARCHAR(25)
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         b.blogId,
         b.title,
@@ -707,18 +816,25 @@ BEGIN
     FROM blogs b
     JOIN users u ON b.userId = u.userId
     WHERE b.blogId = blogIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS getBlogsByUserId;
-DELIMITER //
-CREATE PROCEDURE getBlogsByUserId(
+CREATE OR REPLACE FUNCTION getBlogsByUserId(
     userIdIn INT,
     newerThanIn DATE,
     limitIn INT,
     offsetIn INT
 )
+RETURNS TABLE(
+    blogId INTEGER,
+    title TEXT,
+    content TEXT,
+    date TIMESTAMP,
+    userId INTEGER,
+    author VARCHAR(25)
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         b.blogId,
         b.title,
@@ -733,20 +849,30 @@ BEGIN
         AND (newerThanIn IS NULL OR b.dateCreated >= newerThanIn)
     ORDER BY b.dateCreated DESC
     LIMIT limitIn OFFSET offsetIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS createBlog;
-DELIMITER //
-CREATE PROCEDURE createBlog(
-    titleIn longtext,
-    contentIn longtext,
+CREATE OR REPLACE FUNCTION createBlog(
+    titleIn TEXT,
+    contentIn TEXT,
     userIdIn int
 )
+RETURNS TABLE(
+    blogId INTEGER,
+    title TEXT,
+    content TEXT,
+    date TIMESTAMP,
+    userId INTEGER,
+    author VARCHAR(25)
+) AS $$
+DECLARE
+    new_blog_id INTEGER;
 BEGIN
     INSERT INTO blogs (title, content, userId) 
-    VALUES(titleIn, contentIn, userIdIn);
+    VALUES(titleIn, contentIn, userIdIn)
+    RETURNING blogs.blogId INTO new_blog_id;
     
+    RETURN QUERY
     SELECT 
         b.blogId,
         b.title,
@@ -756,18 +882,24 @@ BEGIN
         u.username as author
     FROM blogs b
     JOIN users u ON b.userId = u.userId
-    WHERE b.blogId = LAST_INSERT_ID();
-END //
-DELIMITER ;
+    WHERE b.blogId = new_blog_id;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS updateBlog;
-DELIMITER //
-CREATE PROCEDURE updateBlog(
+CREATE OR REPLACE FUNCTION updateBlog(
     blogIdIn INT,
-    titleIn longtext,
-    contentIn longtext,
+    titleIn TEXT,
+    contentIn TEXT,
     userIdIn INT
 )
+RETURNS TABLE(
+    blogId INTEGER,
+    title TEXT,
+    content TEXT,
+    date TIMESTAMP,
+    userId INTEGER,
+    author VARCHAR(25)
+) AS $$
 BEGIN
     UPDATE blogs 
     SET 
@@ -775,6 +907,7 @@ BEGIN
         content = contentIn
     WHERE blogId = blogIdIn AND userId = userIdIn;
     
+    RETURN QUERY
     SELECT 
         b.blogId,
         b.title,
@@ -785,33 +918,44 @@ BEGIN
     FROM blogs b
     JOIN users u ON b.userId = u.userId
     WHERE b.blogId = blogIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS deleteBlog;
-DELIMITER //
-CREATE PROCEDURE deleteBlog(
+CREATE OR REPLACE FUNCTION deleteBlog(
     blogIdIn INT,
     userIdIn INT
 )
+RETURNS TABLE(affectedRows BIGINT) AS $$
+DECLARE
+    rows_affected INTEGER;
 BEGIN
     DELETE FROM blogs WHERE blogId = blogIdIn AND userId = userIdIn;
+    GET DIAGNOSTICS rows_affected = ROW_COUNT;
     
-    SELECT ROW_COUNT() as affectedRows;
-END //
-DELIMITER ;
+    RETURN QUERY
+    SELECT rows_affected::BIGINT;
+END;
+$$ LANGUAGE plpgsql;
 
 -- COMMENT MANAGEMENT PROCEDURES
 
-DROP PROCEDURE IF EXISTS getCommentsByBlog;
-DELIMITER //
-CREATE PROCEDURE getCommentsByBlog(
+CREATE OR REPLACE FUNCTION getCommentsByBlog(
     blogIdIn INT,
     newerThanIn DATE,
     limitIn INT,
     offsetIn INT
 )
+RETURNS TABLE(
+    commentId INTEGER,
+    content TEXT,
+    date TIMESTAMP,
+    blogId INTEGER,
+    userId INTEGER,
+    parentCommentId INTEGER,
+    author VARCHAR(25)
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         c.commentId,
         c.content,
@@ -829,15 +973,21 @@ BEGIN
         COALESCE(c.parentCommentId, c.commentId),
         c.dateCreated
     LIMIT limitIn OFFSET offsetIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS getCommentById;
-DELIMITER //
-CREATE PROCEDURE getCommentById(
-    commentIdIn INT
-)
+CREATE OR REPLACE FUNCTION getCommentById(commentIdIn INT)
+RETURNS TABLE(
+    commentId INTEGER,
+    content TEXT,
+    date TIMESTAMP,
+    blogId INTEGER,
+    userId INTEGER,
+    parentCommentId INTEGER,
+    author VARCHAR(25)
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         c.commentId,
         c.content,
@@ -849,15 +999,21 @@ BEGIN
     FROM comments c
     JOIN users u ON c.userId = u.userId
     WHERE c.commentId = commentIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS getCommentReplies;
-DELIMITER //
-CREATE PROCEDURE getCommentReplies(
-    commentIdIn INT
-)
+CREATE OR REPLACE FUNCTION getCommentReplies(commentIdIn INT)
+RETURNS TABLE(
+    commentId INTEGER,
+    content TEXT,
+    date TIMESTAMP,
+    blogId INTEGER,
+    userId INTEGER,
+    parentCommentId INTEGER,
+    author VARCHAR(25)
+) AS $$
 BEGIN
+    RETURN QUERY
     SELECT 
         c.commentId,
         c.content,
@@ -870,21 +1026,32 @@ BEGIN
     JOIN users u ON c.userId = u.userId
     WHERE c.parentCommentId = commentIdIn
     ORDER BY c.dateCreated;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS createComment;
-DELIMITER //
-CREATE PROCEDURE createComment(
-    contentIn longtext,
-    userIdIn int,
-    blogIdIn int,
-    parentCommentIdIn int
+CREATE OR REPLACE FUNCTION createComment(
+    contentIn TEXT,
+    userIdIn INT,
+    blogIdIn INT,
+    parentCommentIdIn INT
 )
+RETURNS TABLE(
+    commentId INTEGER,
+    content TEXT,
+    date TIMESTAMP,
+    blogId INTEGER,
+    userId INTEGER,
+    parentCommentId INTEGER,
+    author VARCHAR(25)
+) AS $$
+DECLARE
+    new_comment_id INTEGER;
 BEGIN
     INSERT INTO comments (content, userId, blogId, parentCommentId) 
-    VALUES(contentIn, userIdIn, blogIdIn, parentCommentIdIn);
+    VALUES(contentIn, userIdIn, blogIdIn, parentCommentIdIn)
+    RETURNING commentId INTO new_comment_id;
     
+    RETURN QUERY
     SELECT 
         c.commentId,
         c.content,
@@ -895,22 +1062,30 @@ BEGIN
         u.username as author
     FROM comments c
     JOIN users u ON c.userId = u.userId
-    WHERE c.commentId = LAST_INSERT_ID();
-END //
-DELIMITER ;
+    WHERE c.commentId = new_comment_id;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS updateComment;
-DELIMITER //
-CREATE PROCEDURE updateComment(
+CREATE OR REPLACE FUNCTION updateComment(
     commentIdIn INT,
-    contentIn longtext,
+    contentIn TEXT,
     userIdIn INT
 )
+RETURNS TABLE(
+    commentId INTEGER,
+    content TEXT,
+    date TIMESTAMP,
+    blogId INTEGER,
+    userId INTEGER,
+    parentCommentId INTEGER,
+    author VARCHAR(25)
+) AS $$
 BEGIN
     UPDATE comments 
     SET content = contentIn
     WHERE commentId = commentIdIn AND userId = userIdIn;
     
+    RETURN QUERY
     SELECT 
         c.commentId,
         c.content,
@@ -922,18 +1097,21 @@ BEGIN
     FROM comments c
     JOIN users u ON c.userId = u.userId
     WHERE c.commentId = commentIdIn;
-END //
-DELIMITER ;
+END;
+$$ LANGUAGE plpgsql;
 
-DROP PROCEDURE IF EXISTS deleteComment;
-DELIMITER //
-CREATE PROCEDURE deleteComment(
+CREATE OR REPLACE FUNCTION deleteComment(
     commentIdIn INT,
     userIdIn INT
 )
+RETURNS TABLE(affectedRows BIGINT) AS $$
+DECLARE
+    rows_affected INTEGER;
 BEGIN
     DELETE FROM comments WHERE commentId = commentIdIn AND userId = userIdIn;
+    GET DIAGNOSTICS rows_affected = ROW_COUNT;
     
-    SELECT ROW_COUNT() as affectedRows;
-END //
-DELIMITER ;
+    RETURN QUERY
+    SELECT rows_affected::BIGINT;
+END;
+$$ LANGUAGE plpgsql;
