@@ -22,14 +22,14 @@ LDAP_HOST = '<<ADD_LDAP_HOST>>'
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_USERNAME = "cs3103blogservice@gmail.com"
-SMTP_PASSWORD = "<<ADD_PASSWORD>>"
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
 EMAIL_FROM = "cs3103blogservice@gmail.com"
 
 # Twilio configuration for SMS
-TWILIO_ACCOUNT_SID = "<<ADD_ACCOUNT_SID>>"
-TWILIO_AUTH_TOKEN = "<<ADD_AUTH_TOKEN>>" 
-TWILIO_PHONE_NUMBER = "+19499983365"
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
 
 # Google Gemini AI configuration
-GEMINI_API_KEY = "<<ADD_API_KEY>>"
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
