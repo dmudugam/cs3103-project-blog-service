@@ -186,12 +186,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 return axios.get('/api/config')
                     .then(response => {
                         // Server Config
-                        this.baseURL = response.data.baseURL;
+                        // Don't override baseURL - let window.location.origin be used
+                        // this.baseURL = response.data.baseURL;
                         return response;
                     })
                     .catch(error => {
                         console.error('Failed to load configuration, using defaults:', error);
-                        // Default Values
                         return Promise.resolve();
                     });
             },
