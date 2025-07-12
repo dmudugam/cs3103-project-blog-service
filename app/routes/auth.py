@@ -53,6 +53,11 @@ class UserRegistration(Resource):
         password_hash = hashlib.sha256((args['password'] + salt).encode()).hexdigest()
         
         try:
+            # MySQL version (old)
+            # sql = "CALL createLocalUser(%s, %s, %s, %s)"
+            
+            # PostgreSQL version (new)
+            sql = "SELECT * FROM createLocalUser(%s, %s, %s, %s)"
             user = sql_call_fetch_one('createLocalUser', (username, email, password_hash, salt))
             
             if not user:

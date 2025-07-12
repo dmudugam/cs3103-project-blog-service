@@ -1,84 +1,42 @@
 import psycopg2
-import psycopg2.extras
-from flask import current_app, abort, request
-import sys
 import os
+from psycopg2.extras import RealDictCursor
 
-def get_db_connection():
-    try:
-        # Use DATABASE_URL from Render if available
-        if os.environ.get('DATABASE_URL'):
-            connection = psycopg2.connect(
-                os.environ.get('DATABASE_URL'),
-                cursor_factory=psycopg2.extras.RealDictCursor
-            )
-        else:
-            connection = psycopg2.connect(
-                host=current_app.config['DB_HOST'],
-                user=current_app.config['DB_USER'],
-                password=current_app.config['DB_PASSWD'],
-                dbname=current_app.config['DB_DATABASE'],
-                port=current_app.config['DB_PORT'],
-                cursor_factory=psycopg2.extras.RealDictCursor
-            )
-        return connection
-    except Exception as e:
-        print(f"Database connection error: {e}", file=sys.stderr)
-        abort(500)
+# Get connection parameters from environment variables
+db_host = os.environ.get('DB_HOST')
+db_port = os.environ.get('DB_PORT')
+db_name = os.environ.get('DB_NAME')
+db_user = os.environ.get('DB_USER')
+db_password = os.environ.get('DB_PASSWORD')
 
-def sql_call_fetch_all(proc_name, args=None):
-    cursor = None
-    db_connection = None
+def get_connection():
+    """Get a PostgreSQL database connection"""
+    return psycopg2.connect(
+        host=db_host,
+        port=db_port,
+        dbname=db_name,
+        user=db_user,
+        password=db_password
+    )
+
+def sql_call_fetch_one(sql, params=()):
+    """Execute SQL query and fetch one result"""
+    connection = get_connection()
     try:
-        db_connection = get_db_connection()
-        cursor = db_connection.cursor()
-        
-        if args is not None:
-            cursor.callproc(proc_name, args)
-        else:
-            cursor.callproc(proc_name)
-            
-        rows = cursor.fetchall()
-        db_connection.commit()
-        return rows
-    except Exception as e:
-        print(f"Database error: {e}", file=sys.stderr)
-        if request:
-            abort(500)
-        raise e
+        with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(sql, params)
+            result = cursor.fetchone()
+            return result
     finally:
-        if cursor:
-            cursor.close()
-        if db_connection:
-            db_connection.close()
+        connection.close()
 
-def sql_call_fetch_one(proc_name, args=None):
-    cursor = None
-    db_connection = None
+def sql_call_fetch_all(sql, params=()):
+    """Execute SQL query and fetch all results"""
+    connection = get_connection()
     try:
-        db_connection = get_db_connection()
-        cursor = db_connection.cursor()
-        
-        if args is not None:
-            cursor.callproc(proc_name, args)
-        else:
-            cursor.callproc(proc_name)
-            
-        row = cursor.fetchone()
-        db_connection.commit()
-        return row
-    except psycopg2.IntegrityError as e:
-        error_code = e.pgcode
-        error_msg = e.pgerror
-        print(f"Database integrity error: {error_code}, {error_msg}", file=sys.stderr)
-        raise e
-    except Exception as e:
-        print(f"Database error: {e}", file=sys.stderr)
-        if request:
-            abort(500)
-        raise e
+        with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(sql, params)
+            result = cursor.fetchall()
+            return result
     finally:
-        if cursor:
-            cursor.close()
-        if db_connection:
-            db_connection.close()
+        connection.close()
