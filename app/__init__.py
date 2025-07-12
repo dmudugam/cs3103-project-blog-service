@@ -23,7 +23,13 @@ def create_app():
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
     
     # Initialize CORS (because browsers are paranoid and need therapy about sharing :P)
-    CORS(app, resources={r"/*": {"origins": f"https://{app.config['APP_HOST']}", "supports_credentials": True}})
+    frontend_url = "https://cs3103-project-blog-service.onrender.com" 
+
+    CORS(app, 
+         supports_credentials=True, 
+         origins=[frontend_url], 
+         allow_headers=["Content-Type", "Authorization"],
+         expose_headers=["Content-Type", "Set-Cookie"])
     
     Session(app)
     
@@ -51,10 +57,10 @@ def create_app():
             response.headers['Content-Type'] = 'application/json'
         
         # CORS headers
-        response.headers.setdefault('Access-Control-Allow-Origin', f"https://{app.config['APP_HOST']}")
-        response.headers.setdefault('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        response.headers.setdefault('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.setdefault('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Allow-Origin', frontend_url)
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
         
         return response
 

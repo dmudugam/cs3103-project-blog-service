@@ -143,10 +143,8 @@ class AuthLogin(Resource):
             
             sms_enabled = is_sms_enabled()
             
-            response = {
+            response = make_response(jsonify({
                 'status': 'success',
-                'message': 'Login successful',
-                'token': 'session_based',
                 'userId': user['userId'],
                 'username': user['username'],
                 'email': user.get('email'),
@@ -157,9 +155,19 @@ class AuthLogin(Resource):
                 'hasPhone': has_phone,
                 'smsEnabled': sms_enabled,
                 'userType': 'local'
-            }
+            }), 200)
             
-            return make_response(jsonify(response), 200)
+            # Set cookie with proper flags
+            response.set_cookie(
+                'peanutButter',
+                value=session['username'],
+                max_age=86400,  # 1 day in seconds
+                secure=True,
+                httponly=True,
+                samesite='None'  # Critical for cross-origin requests
+            )
+
+            return response
         else:
             # LDAP authentication
             try:
@@ -201,10 +209,8 @@ class AuthLogin(Resource):
                 
                 sms_enabled = is_sms_enabled()
                 
-                response = {
+                response = make_response(jsonify({
                     'status': 'success',
-                    'message': 'Login successful',
-                    'token': 'session_based',
                     'userId': user['userId'],
                     'username': user['username'],
                     'email': user.get('email'),
@@ -215,9 +221,19 @@ class AuthLogin(Resource):
                     'hasPhone': has_phone,
                     'smsEnabled': sms_enabled,
                     'userType': 'ldap'
-                }
+                }), 200)
                 
-                return make_response(jsonify(response), 200)
+                # Set cookie with proper flags
+                response.set_cookie(
+                    'peanutButter',
+                    value=session['username'],
+                    max_age=86400,  # 1 day in seconds
+                    secure=True,
+                    httponly=True,
+                    samesite='None'  # Critical for cross-origin requests
+                )
+
+                return response
             
             except LDAPException as e:
                 return make_response(jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401)
