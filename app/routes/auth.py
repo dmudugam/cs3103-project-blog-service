@@ -284,9 +284,25 @@ class AuthLogin(Resource):
 class AuthLogout(Resource):
     @login_required
     def post(self):
-        session.pop('username', None)
-        session.pop('user_type', None)
-        return make_response(jsonify({'status': 'success', 'message': 'Logout successful'}), 200)
+        # Clear the entire session
+        session.clear()
+        
+        # Create a response
+        response = make_response(jsonify({'status': 'success', 'message': 'Logout successful'}), 200)
+        
+        # Explicitly delete the cookie with the same parameters used to set it
+        response.set_cookie(
+            'peanutButter',
+            value='',
+            max_age=0,  # Expire immediately
+            expires=0,   # Expire immediately
+            secure=True,
+            httponly=True,
+            samesite='None',
+            domain=app.config['SESSION_COOKIE_DOMAIN']
+        )
+        
+        return response
 
 # Email OTP verification
 class VerifyOTP(Resource):
