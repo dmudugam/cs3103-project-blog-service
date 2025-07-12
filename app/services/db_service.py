@@ -17,7 +17,10 @@ def sql_call_fetch_one(sql, params=()):
     connection = get_connection()
     try:
         with connection.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(sql, params)
+            # Use proper PostgreSQL function call syntax
+            param_placeholders = ','.join(['%s' for _ in range(len(params))])
+            sql_query = f"SELECT * FROM {sql}({param_placeholders})"
+            cursor.execute(sql_query, params)
             result = cursor.fetchone()
             return result
     finally:
@@ -28,7 +31,10 @@ def sql_call_fetch_all(sql, params=()):
     connection = get_connection()
     try:
         with connection.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(sql, params)
+            # Use proper PostgreSQL function call syntax
+            param_placeholders = ','.join(['%s' for _ in range(len(params))])
+            sql_query = f"SELECT * FROM {sql}({param_placeholders})"
+            cursor.execute(sql_query, params)
             result = cursor.fetchall()
             return result
     finally:
