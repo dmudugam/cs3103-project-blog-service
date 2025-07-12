@@ -8,11 +8,11 @@ APP_PORT = int(os.environ.get('PORT', 10000))  # Render sets PORT environment va
 APP_DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 # PostgreSQL database settings for Render
-DB_HOST = 'dpg-d1os4tbipnbc73fck51g-a.virginia-postgres.render.com'
-DB_USER = 'dineth'
-DB_PASSWD = 'eBtmejYbH7iTA50cYar7QtrHffxG1fFj'
-DB_DATABASE = 'blogservice'
-DB_PORT = 5432
+DB_HOST = 'sql5.freesqldatabase.com'
+DB_USER = 'sql5789654'
+DB_PASSWD = 'tTM3uj6lDi'
+DB_DATABASE = 'sql5789654'
+DB_PORT = 3306
 
 SECRET_KEY = '<<ADD_SECRET_KEY>>'
 
